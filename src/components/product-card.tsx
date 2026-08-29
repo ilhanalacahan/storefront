@@ -4,6 +4,7 @@ import { Price, DiscountBadge } from "@/components/price";
 import { ProductImage } from "@/components/product-image";
 import { QuickAddButton } from "@/components/add-to-cart";
 import type { StorefrontProduct } from "@/lib/api/types";
+import { urunYolu } from "@/lib/site";
 
 /**
  * Vitrin kartı (Server Component) — statik kısmı önbelleklenebilir;
@@ -13,7 +14,7 @@ export function ProductCard({ urun }: { urun: StorefrontProduct }) {
   return (
     <div className="group relative flex flex-col overflow-hidden rounded-2xl border border-line bg-surface transition-shadow hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-black/40">
       <Link
-        href={`/urun/${urun.uid}`}
+        href={urunYolu(urun)}
         className="relative block aspect-square overflow-hidden"
         aria-label={urun.name}
       >
@@ -37,7 +38,7 @@ export function ProductCard({ urun }: { urun: StorefrontProduct }) {
       </Link>
 
       <div className="flex flex-1 flex-col gap-1 p-3">
-        <Link href={`/urun/${urun.uid}`} className="hover:text-accent">
+        <Link href={urunYolu(urun)} className="hover:text-accent">
           <h3 className="line-clamp-2 text-sm font-medium leading-snug">{urun.name}</h3>
         </Link>
         {urun.subtitle ? (

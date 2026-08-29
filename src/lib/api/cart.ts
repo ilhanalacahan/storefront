@@ -1,5 +1,5 @@
 import { apiIstemci } from "./client";
-import type { Cart, CartAddressInput } from "./types";
+import type { Cart, CartAddressInput, ShippingMethod } from "./types";
 
 /**
  * Sepet işlemleri — hepsi tarayıcıdan, proxy üzerinden.
@@ -99,6 +99,35 @@ export async function sepetBirlestir(guestCartUid: string, token: string): Promi
   return apiIstemci<Cart>("/carts/merge", {
     metot: "POST",
     govde: { guestCartUid },
+    token,
+  });
+}
+
+/**
+ * Teslimat seçenekleri — ücretler BU SEPETE göre çözülmüş gelir ("şu tutar
+ * üstü ücretsiz" eşiği sepetin net matrahına bakar). cartUid boşsa tarife
+ * listesi eşiksiz döner.
+ */
+export async function kargoSecenekleri(
+  cartUid: string,
+  token?: string | null,
+): Promise<ShippingMethod[]> {
+  const d = await apiIstemci<{ methods: ShippingMethod[] }>(
+    `/shipping/methods${cartUid ? `?cart=${encodeURIComponent(cartUid)}` : ""}`,
+    { token },
+  );
+  return d.methods;
+}
+
+/** Sepete teslimat yöntemini yazar; GÜNCEL sepeti döndürür (kupon uçlarıyla aynı sözleşme). */
+export async function kargoSec(
+  cartUid: string,
+  code: string,
+  token?: string | null,
+): Promise<Cart> {
+  return apiIstemci<Cart>(yol(cartUid, "/shipping"), {
+    metot: "PUT",
+    govde: { code },
     token,
   });
 }

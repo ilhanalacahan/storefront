@@ -71,6 +71,15 @@ export interface StorefrontOrderLine {
 }
 
 export interface StorefrontOrderDetail extends StorefrontOrder {
+  /** Teslimat DAMGALARI — sipariş anındaki karar; tarife sonradan değişse de sabit. */
+  shippingFee: string;
+  /** Kargo firması / teslimat yönteminin adı ('' = teslimat yöntemi seçilmemiş). */
+  shipperCompName: string;
+  /** Takip numarası ('' = mağaza henüz girmedi). */
+  trackingCode: string;
+  despatchName: string;
+  despatchAddress: string;
+  despatchCity: string;
   lines: StorefrontOrderLine[];
 }
 
@@ -166,4 +175,30 @@ export async function sifreDegistir(
     govde: { oldPassword, newPassword },
     token,
   });
+}
+
+/**
+ * Parola sıfırlama isteği. Yanıt, e-posta kayıtlı OLSA DA OLMASA DA aynıdır —
+ * sunucu hesap varlığını sızdırmaz; arayüz de "kayıtlıysa gönderildi" der.
+ */
+export async function sifreSifirlamaIste(email: string): Promise<void> {
+  await apiIstemci("/account/password/forgot", { metot: "POST", govde: { email } });
+}
+
+/** Jetonla yeni parola belirler (anonim uç — yetki jetondadır). */
+export async function sifreSifirla(token: string, newPassword: string): Promise<void> {
+  await apiIstemci("/account/password/reset", {
+    metot: "POST",
+    govde: { token, newPassword },
+  });
+}
+
+/** Giriş yapmış hesaba doğrulama bağlantısı yollar. */
+export async function dogrulamaMailiGonder(token: string): Promise<void> {
+  await apiIstemci("/account/verify/send", { metot: "POST", govde: {}, token });
+}
+
+/** E-postayı doğrular (anonim — bağlantıya başka cihazdan tıklanmış olabilir). */
+export async function epostaDogrula(kod: string): Promise<void> {
+  await apiIstemci("/account/verify", { metot: "POST", govde: { token: kod } });
 }

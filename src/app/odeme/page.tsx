@@ -1,24 +1,26 @@
 "use client";
 
 import {
-  BadgeCheck,
   CreditCard,
   Loader2,
   Lock,
   MapPin,
   ShieldCheck,
+  Truck,
   XCircle,
 } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { CartTotals } from "@/components/cart-lines";
+import { SozlesmeOnayi } from "@/components/sozlesme-onayi";
+import { TeslimatSecimi } from "@/components/teslimat-secimi";
 import { useAdresYaz, useCart } from "@/hooks/use-cart";
-import { odemeBaslat, odemeIptal, odemeOnayla } from "@/lib/api/payment";
+import { odemeBaslat, odemeIptal, odemeOnayla, odemeOturumu } from "@/lib/api/payment";
 import type { PaymentSession } from "@/lib/api/types";
 import { fiyat } from "@/lib/format";
+import { clientUidAl, odemeIziniSil, oturumUidOku, oturumUidYaz } from "@/lib/odeme-izi";
 import { useAuthStore } from "@/store/auth-store";
 import { useCartStore } from "@/store/cart-store";
 
@@ -28,9 +30,17 @@ import { useCartStore } from "@/store/cart-store";
  *   1. ADRES    cartSetAddress ile iletişim + teslimat sepete yazılır
  *   2. ÖDEME    paymentSessionStart: stok/kur/kampanya CANLI doğrulanır
  *               ("sepette var ama stok bitti" burada yakalanır) ve 3D adresi döner
- *   3. 3D SİM   demo "test" sağlayıcısı gerçek POS'a gitmez; panel 3D adımını
- *               canlandırır — Onayla: paymentSessionAuthorize (autoCapture ile
- *               tahsilat düşer ve SİPARİŞ DOĞAR)
+ *   3. 3D       GERÇEK sağlayıcıda tarayıcı bankanın sayfasına gider ve
+ *               /odeme/donus'a döner. TEST sağlayıcısında o adım aşağıdaki
+ *               panelde canlandırılır — sonuç yine /odeme/donus'ta gösterilir.
+ *
+ * SONUÇ EKRANI BU SAYFADA DEĞİL: iki yol da /odeme/donus'a düşer, çünkü gerçek
+ * 3D'de müşteri buraya değil oraya döner. Sonucu iki yerde göstermek, ikisinin
+ * zamanla birbirinden sapması demektir.
+ *
+ * KALDIĞI YERDEN DEVAM: sayfa açılışında sepete bağlı açık bir ödeme oturumu
+ * varsa geri yüklenir (lib/odeme-izi.ts). Aksi hâlde 3D'den dönen ya da sekmeyi
+ * yenileyen müşteri, sepeti donmuş ama ekranı sıfırlanmış hâlde kalırdı.
  *
  * clientUid idempotency anahtarıdır: sepete bağlı üretilir ve saklanır; ağ
  * kopsa da aynı anahtar ikinci oturum/sipariş açtırmaz.
@@ -46,26 +56,21 @@ interface AdresForm {
   shipCity: string;
 }
 
-function clientUidAl(cartUid: string): string {
-  const anahtar = `tsf-odeme-${cartUid}`;
-  let uid = localStorage.getItem(anahtar);
-  if (!uid) {
-    uid = crypto.randomUUID();
-    localStorage.setItem(anahtar, uid);
-  }
-  return uid;
-}
+/** Test sağlayıcısı gerçek bir adrese gitmez; 3D adımı sayfadaki panelde canlanır. */
+const TEST_SAGLAYICI = "test";
+
+/** Sonucu kesinleşmiş oturum: müşterinin yeri artık dönüş sayfasıdır. */
+const SONUCLANMIS = new Set([3, 4, 5, 6, 7]);
 
 export default function OdemeSayfasi() {
   const router = useRouter();
   const { data: sepet } = useCart();
   const cartUid = useCartStore((s) => s.cartUid);
-  const clearCart = useCartStore((s) => s.clearCart);
   const token = useAuthStore((s) => s.token);
   const account = useAuthStore((s) => s.account);
   const adresYaz = useAdresYaz();
 
-  const [adim, setAdim] = useState<"adres" | "odeme" | "sonuc">("adres");
+  const [adim, setAdim] = useState<"adres" | "odeme">("adres");
   const [form, setForm] = useState<AdresForm>({
     email: account?.email ?? "",
     customerName: account?.fullName ?? "",
@@ -77,9 +82,54 @@ export default function OdemeSayfasi() {
   const [senaryo, setSenaryo] = useState(""); // '' başarılı · 'red' · 'hata'
   const [oturum, setOturum] = useState<PaymentSession | null>(null);
   const [islemde, setIslemde] = useState(false);
-  const [tamamlanan, setTamamlanan] = useState<PaymentSession | null>(null);
+  // Sözleşme onayı HER ödeme denemesinde yeniden istenir (saklanmaz):
+  // bilgilendirme o siparişe aittir, bir kerelik genel bir onay değildir.
+  const [sozlesmeOnayli, setSozlesmeOnayli] = useState(false);
 
   const dolu = sepet && sepet.status === 0 && sepet.lines.length > 0;
+
+  // --- Formu SEPETTEN ön-doldur (bir kez) ---
+  // Adres sepette yaşıyor; sayfa yenilendiğinde ya da 3D'den dönüldüğünde React
+  // durumu sıfırlanır ama sepetteki adres durur. Yeniden yazdırmak, müşteriye
+  // "az önce doldurduğum form nereye gitti?" dedirtir.
+  const formDolduruldu = useRef(false);
+  useEffect(() => {
+    if (formDolduruldu.current || !sepet) return;
+    formDolduruldu.current = true;
+    setForm((f) => ({
+      email: sepet.email || f.email,
+      customerName: sepet.customerName || sepet.shipName || f.customerName,
+      phone: sepet.phone || f.phone,
+      shipAddress: sepet.shipAddress || f.shipAddress,
+      shipDistrict: sepet.shipDistrict || f.shipDistrict,
+      shipCity: sepet.shipCity || f.shipCity,
+    }));
+  }, [sepet]);
+
+  // --- Açık ödeme oturumunu geri yükle (bir kez) ---
+  // Sonucu kesinleşmiş oturum bu sayfanın işi değildir: müşteri dönüş
+  // sayfasına taşınır. Bekleyen oturum ise ekrana geri konur — aksi hâlde
+  // sepet donmuş, ekran ise "Ödeme Adımına Geç" der ve müşteri kilitlenir.
+  const oturumArandi = useRef(false);
+  useEffect(() => {
+    if (oturumArandi.current || !cartUid) return;
+    oturumArandi.current = true;
+    const uid = oturumUidOku(cartUid);
+    if (!uid) return;
+    let vazgecildi = false;
+    void odemeOturumu(uid, token || null).then((s) => {
+      if (vazgecildi || !s) return;
+      if (SONUCLANMIS.has(s.status)) {
+        router.replace(`/odeme/donus?oturum=${encodeURIComponent(s.uid)}`);
+        return;
+      }
+      setOturum(s);
+      setAdim("odeme");
+    });
+    return () => {
+      vazgecildi = true;
+    };
+  }, [cartUid, token, router]);
 
   const alan = (k: keyof AdresForm, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -113,9 +163,23 @@ export default function OdemeSayfasi() {
       const s = await odemeBaslat({
         cartUid,
         clientUid: clientUidAl(cartUid),
-        returnUrl: window.location.origin + "/odeme",
+        // Dönüş adresi SONUÇ SAYFASIDIR, bu sayfa değil: sağlayıcı müşteriyi
+        // geri gönderdiğinde uygulama sıfırdan boot olur ve burada gösterilecek
+        // bir durum kalmaz.
+        returnUrl: window.location.origin + "/odeme/donus",
         token: token || null,
       });
+      // Oturumu ÖNCE ize yaz, sonra yönlendir: yönlendirmeden sonra bu sayfanın
+      // kodu bir daha çalışmayabilir ve oturumun izi kalmazsa dönen müşteriyi
+      // hangi ödemeye bağlayacağımızı bilemeyiz.
+      oturumUidYaz(cartUid, s.uid);
+      // GERÇEK sağlayıcı: tarayıcı bankanın 3D sayfasına gider.
+      // TEST sağlayıcısı: adresi (test-odeme.local) çözülmez, o adım aşağıdaki
+      // panelde canlandırılır.
+      if (s.providerCode !== TEST_SAGLAYICI && s.redirectUrl) {
+        window.location.assign(s.redirectUrl);
+        return;
+      }
       setOturum(s);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Ödeme başlatılamadı.");
@@ -129,23 +193,17 @@ export default function OdemeSayfasi() {
     setIslemde(true);
     try {
       const s = await odemeOnayla(oturum.uid, senaryo, token || null);
-      if (s.status === 3 && s.orderUid) {
-        // captured → sipariş doğdu
-        localStorage.removeItem(`tsf-odeme-${cartUid}`);
-        clearCart();
-        setTamamlanan(s);
-        setAdim("sonuc");
-      } else if (s.status === 2) {
-        // authorized ama capture düşmedi: sağlayıcıda autoCapture kapalı —
-        // tahsilat (ve sipariş) back-office onayıyla düşecek. Hata değil.
-        setOturum(s);
-        toast.info(
-          "Ödeme yetkilendirildi; tahsilat mağaza onayı bekliyor (sağlayıcıda autoCapture kapalı).",
-        );
-      } else {
-        setOturum(s);
-        toast.error(s.errorMessage || s.statusLabel || "Ödeme tamamlanamadı.");
+      // Tahsil edildi (sipariş doğdu) ya da yetkilendirildi: ikisinin de yeri
+      // dönüş sayfasıdır — sepetin temizliğini de orası yapar, çünkü gerçek 3D
+      // akışında bu kod hiç çalışmaz.
+      if (s.status === 3 || s.status === 2) {
+        router.replace(`/odeme/donus?oturum=${encodeURIComponent(s.uid)}`);
+        return;
       }
+      // Başarısız oturum aynı clientUid ile YENİDEN başlatılabilir; müşteriyi
+      // buradan çıkarmıyoruz ki sepetini kaybetmeden tekrar denesin.
+      setOturum(s);
+      toast.error(s.errorMessage || s.statusLabel || "Ödeme tamamlanamadı.");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Ödeme onaylanamadı.");
     } finally {
@@ -159,8 +217,8 @@ export default function OdemeSayfasi() {
     try {
       await odemeIptal(oturum.uid, token || null);
       // İptal edilen oturum aynı clientUid ile OLDUĞU GİBİ döner (backend
-      // ikinci çekime izin vermez) — yeni deneme için anahtar döndürülür.
-      localStorage.removeItem(`tsf-odeme-${cartUid}`);
+      // ikinci çekime izin vermez) — yeni deneme için iz temizlenir.
+      odemeIziniSil(cartUid);
       setOturum(null);
       toast.info("Ödeme iptal edildi — sepetiniz tekrar düzenlenebilir.");
     } catch (err) {
@@ -169,50 +227,6 @@ export default function OdemeSayfasi() {
       setIslemde(false);
     }
   };
-
-  // ---- SONUÇ EKRANI ----
-  if (adim === "sonuc" && tamamlanan) {
-    return (
-      <div className="mx-auto flex max-w-lg flex-col items-center gap-4 py-20 text-center">
-        <span className="flex size-16 items-center justify-center rounded-full bg-success/10 text-success">
-          <BadgeCheck className="size-9" />
-        </span>
-        <h1 className="text-2xl font-bold">Siparişiniz alındı 🎉</h1>
-        <p className="text-sm text-soft">
-          Ödemeniz onaylandı, siparişiniz oluşturuldu ve stok sizin için rezerve edildi.
-        </p>
-        <div className="w-full space-y-1.5 rounded-2xl border border-line bg-surface p-4 text-left text-sm">
-          <div className="flex justify-between">
-            <span className="text-soft">Tutar</span>
-            <span className="font-semibold">{fiyat(tamamlanan.capturedAmount, tamamlanan.curCode)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-soft">Sipariş No</span>
-            <span className="font-mono text-xs">{tamamlanan.orderUid}</span>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Link
-            href="/urunler"
-            className="rounded-xl border border-line px-5 py-2.5 text-sm font-semibold hover:bg-surface"
-          >
-            Alışverişe Devam
-          </Link>
-          <Link
-            href="/hesap"
-            className="rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-accent-foreground hover:bg-accent-hover"
-          >
-            Siparişlerim
-          </Link>
-        </div>
-        {!token ? (
-          <p className="text-xs text-soft">
-            İpucu: üye olursanız siparişlerinizi hesabınızdan takip edebilirsiniz.
-          </p>
-        ) : null}
-      </div>
-    );
-  }
 
   // ---- SEPET BOŞ ----
   if (!dolu) {
@@ -320,7 +334,27 @@ export default function OdemeSayfasi() {
             )}
           </section>
 
-          {/* ADIM 2: ÖDEME */}
+          {/* ADIM 2: TESLİMAT */}
+          {/* Adres yazıldıktan sonra görünür: ücret sepetin net matrahına bağlı
+              olduğu için seçim, tutarı da değiştirir — bu yüzden ödemeden ÖNCE
+              yapılmalı. Kanalda tanımlı yöntem yoksa bölüm hiç çizilmez
+              (teslimatsız kurulumlar için boş bir kutu göstermenin anlamı yok). */}
+          {adim === "odeme" && !oturum ? <TeslimatSecimi /> : null}
+          {adim === "odeme" && oturum ? (
+            <section className="rounded-2xl border border-line bg-surface p-5">
+              <h2 className="mb-3 flex items-center gap-2 font-semibold">
+                <Truck className="size-4.5 text-accent" /> Teslimat
+              </h2>
+              <p className="text-sm text-soft">
+                {sepet.shipCity ? `${sepet.shipCity} · ` : ""}
+                {Number(sepet.shippingFee) > 0
+                  ? fiyat(sepet.shippingFee, sepet.curCode)
+                  : "Ücretsiz kargo"}
+              </p>
+            </section>
+          ) : null}
+
+          {/* ADIM 3: ÖDEME */}
           {adim === "odeme" ? (
             <section className="rounded-2xl border border-line bg-surface p-5">
               <h2 className="mb-4 flex items-center gap-2 font-semibold">
@@ -353,10 +387,15 @@ export default function OdemeSayfasi() {
                       </button>
                     ))}
                   </div>
+                  <SozlesmeOnayi
+                    sepet={sepet}
+                    onayli={sozlesmeOnayli}
+                    onChange={setSozlesmeOnayli}
+                  />
                   <button
                     type="button"
                     onClick={odemeyiBaslat}
-                    disabled={islemde}
+                    disabled={islemde || !sozlesmeOnayli}
                     className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-accent font-semibold text-accent-foreground transition hover:bg-accent-hover disabled:opacity-40"
                   >
                     {islemde ? (

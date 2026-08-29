@@ -24,21 +24,83 @@ export interface UrunListeParams {
   /** Backend sayfa başına en fazla 60 verir; fazlası sessizce kırpılır. */
   limit?: number;
   offset?: number;
+  /** '' ad · fiyat-artan · fiyat-azalan · yeni (bilinmeyen değer ada düşer). */
+  sort?: string;
+  /** Marka süzgeci (harf duyarsız tam eşleşme). */
+  brand?: string;
+  /** true → satılabilir stoğu olmayanlar elenir. */
+  inStock?: boolean;
+  /** KDV dahil fiyat aralığı ('' = sınır yok). */
+  minPrice?: string;
+  maxPrice?: string;
+}
+
+/** Liste yanıtı: ürünler + TOPLAM (sayfa numarası göstermek için). */
+export interface UrunListeSonuc {
+  urunler: StorefrontProduct[];
+  /**
+   * Süzgeçlere uyan toplam ürün sayısı. Sunucu KAPSAMI sayar; fiyatı
+   * çözülemeyen ürünler listede elendiği için birkaç fazla olabilir —
+   * sayfalama için yeterli, "tam olarak N ürün" iddiası için değil.
+   */
+  toplam: number;
+}
+
+function listeYolu(params: UrunListeParams): string {
+  return `/products${sorgu({
+    search: params.search,
+    category: params.categoryUid,
+    collection: params.collectionUid,
+    limit: params.limit ?? 24,
+    offset: params.offset,
+    sort: params.sort,
+    brand: params.brand,
+    inStock: params.inStock ? "1" : undefined,
+    minPrice: params.minPrice,
+    maxPrice: params.maxPrice,
+  })}`;
 }
 
 /** Sunucu tarafı liste — arama yoksa 60 sn ISR, aramada önbelleksiz (kişiye özel sonuç). */
 export async function urunleriGetir(params: UrunListeParams = {}): Promise<StorefrontProduct[]> {
-  const d = await apiSunucu<{ products: StorefrontProduct[] }>(
-    `/products${sorgu({
+  const d = await apiSunucu<{ products: StorefrontProduct[] }>(listeYolu(params), {
+    revalidate: params.search ? 0 : 60,
+  });
+  return d.products;
+}
+
+/** Toplamıyla birlikte liste — sayfa numarası gösteren ekranlar bunu kullanır. */
+export async function urunSayfasiGetir(params: UrunListeParams = {}): Promise<UrunListeSonuc> {
+  const d = await apiSunucu<{ products: StorefrontProduct[]; total: number }>(
+    listeYolu(params),
+    { revalidate: params.search ? 0 : 60 },
+  );
+  return { urunler: d.products, toplam: d.total ?? 0 };
+}
+
+export interface StorefrontBrandItem {
+  name: string;
+  count: number;
+}
+
+/**
+ * Marka süzgeci seçenekleri. MARKA süzgecini kendisi yok sayar — bir marka
+ * seçiliyken de öteki markalar seçilebilir kalmalı.
+ */
+export async function markalariGetir(
+  params: Omit<UrunListeParams, "brand" | "limit" | "offset" | "sort"> = {},
+): Promise<StorefrontBrandItem[]> {
+  const d = await apiSunucu<{ brands: StorefrontBrandItem[] }>(
+    `/brands${sorgu({
       search: params.search,
       category: params.categoryUid,
       collection: params.collectionUid,
-      limit: params.limit ?? 24,
-      offset: params.offset,
+      minPrice: params.minPrice,
+      maxPrice: params.maxPrice,
     })}`,
-    { revalidate: params.search ? 0 : 60 },
+    { revalidate: 300 },
   );
-  return d.products;
+  return d.brands;
 }
 
 export interface StorefrontCategory {

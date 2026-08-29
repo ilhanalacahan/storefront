@@ -92,7 +92,7 @@ export default async function AnaSayfa() {
           </div>
         ) : urunler.length === 0 ? (
           <div className="rounded-2xl border border-line bg-surface p-8 text-center text-sm text-soft">
-            Bu kanalda yayında ürün yok — TurboTicari'den ürünleri kanala yayınlayın
+            Bu kanalda yayında ürün yok — ticari yönetim uygulamasından ürünleri kanala yayınlayın
             (yayın politikası ya da kanal ilanı).
           </div>
         ) : (

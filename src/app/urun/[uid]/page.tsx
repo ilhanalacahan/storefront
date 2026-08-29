@@ -5,6 +5,9 @@ import { notFound } from "next/navigation";
 import { urunGetir } from "@/lib/api/catalog";
 import { BuyBox } from "./buy-box";
 import { Gallery } from "./gallery";
+import { AtaUyarisi, VaryantSecici } from "@/components/varyant-secici";
+import { UrunYapisalVerisi } from "@/components/json-ld";
+import { SITE_ADI, mutlak, urunYolu } from "@/lib/site";
 
 /**
  * Ürün detayı (PDP) — iki katmanlı veri stratejisi:
@@ -24,10 +27,28 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
     const urun = await urunGetir(uid);
     if (!urun) return { title: "Ürün bulunamadı" };
+    const aciklama = urun.subtitle || urun.description.slice(0, 160) || urun.name;
+    const yol = urunYolu(urun);
     return {
       title: urun.name,
-      description: urun.subtitle || urun.description.slice(0, 160) || urun.name,
-      openGraph: urun.imageUrl ? { images: [{ url: urun.imageUrl }] } : undefined,
+      description: aciklama,
+      // CANONICAL HANDLE'LI ADRESTİR: aynı ürüne hem /urun/<uid> hem
+      // /urun/<handle> ile ulaşılabildiği için hangisinin asıl olduğunu
+      // söylemek zorundayız — yoksa arama motoru iki ayrı sayfa sayar.
+      alternates: { canonical: yol },
+      openGraph: {
+        type: "website",
+        title: urun.name,
+        description: aciklama,
+        url: mutlak(yol),
+        siteName: SITE_ADI,
+        images: urun.imageUrl ? [{ url: urun.imageUrl, alt: urun.name }] : undefined,
+      },
+      twitter: {
+        card: urun.imageUrl ? "summary_large_image" : "summary",
+        title: urun.name,
+        description: aciklama,
+      },
     };
   } catch {
     return { title: "Ürün" };
@@ -46,12 +67,19 @@ export default async function UrunDetay({ params }: Props) {
 
   return (
     <div className="py-6">
+      <UrunYapisalVerisi urun={urun} />
       <div className="grid gap-8 lg:grid-cols-2">
         <Gallery
           images={urun.images.length ? urun.images : urun.imageUrl ? [urun.imageUrl] : []}
           alt={urun.name}
         />
-        <BuyBox baslangic={urun} />
+        <div className="space-y-6">
+          {/* Varyant seçici SUNUCUDA çizilir: seçim bir durum değil, adrestir
+              (her varyantın kendi sayfası var). BuyBox'tan önce gelir —
+              müşteri önce hangi varyanta baktığını görmeli, sonra fiyatı. */}
+          <VaryantSecici urun={urun} />
+          {urun.isVariantMaster ? <AtaUyarisi urun={urun} /> : <BuyBox baslangic={urun} />}
+        </div>
       </div>
 
       {urun.description ? (

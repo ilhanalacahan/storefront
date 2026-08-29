@@ -1,11 +1,19 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, Loader2, LogOut, MapPin, Package, User } from "lucide-react";
+import { BadgeCheck, ChevronDown, Loader2, LogOut, MapPin, Package, User } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { adreslerim, girisYap, kayitOl, siparisDetay, siparislerim } from "@/lib/api/account";
+import {
+  adreslerim,
+  dogrulamaMailiGonder,
+  girisYap,
+  kayitOl,
+  siparisDetay,
+  siparislerim,
+} from "@/lib/api/account";
 import { sepetBirlestir } from "@/lib/api/cart";
 import type { StorefrontAuthPayload } from "@/lib/api/types";
 import { fiyat, miktar, ODEME_DURUM, SIPARIS_DURUM, tarih } from "@/lib/format";
@@ -134,7 +142,16 @@ function GirisKayit() {
                 onChange={(e) => setKvkk(e.target.checked)}
                 className="mt-0.5 accent-[var(--accent)]"
               />
-              KVKK aydınlatma metnini okudum, kişisel verilerimin işlenmesini onaylıyorum. *
+              <span>
+                <Link
+                  href="/sozlesmeler/gizlilik"
+                  target="_blank"
+                  className="text-accent hover:underline"
+                >
+                  KVKK aydınlatma metnini
+                </Link>{" "}
+                okudum, kişisel verilerimin işlenmesini onaylıyorum. *
+              </span>
             </label>
           ) : null}
           <button
@@ -147,9 +164,16 @@ function GirisKayit() {
           </button>
         </form>
         {mod === "giris" ? (
-          <p className="mt-3 text-center text-xs text-soft">
-            Sepetiniz giriş sonrası hesabınıza otomatik taşınır.
-          </p>
+          <>
+            <p className="mt-3 text-center text-sm">
+              <Link href="/sifre-sifirla" className="text-accent hover:underline">
+                Parolamı unuttum
+              </Link>
+            </p>
+            <p className="mt-2 text-center text-xs text-soft">
+              Sepetiniz giriş sonrası hesabınıza otomatik taşınır.
+            </p>
+          </>
         ) : null}
       </div>
     </div>
@@ -196,6 +220,7 @@ function HesapPaneli() {
         <p className="font-semibold">{account?.fullName || "—"}</p>
         <p className="text-soft">{account?.email}</p>
         {account?.phone ? <p className="text-soft">{account.phone}</p> : null}
+        <EpostaDurumu />
       </section>
 
       <section className="rounded-2xl border border-line bg-surface p-5">
@@ -269,20 +294,65 @@ function SiparisSatiri({
           ) : !detayQ.data ? (
             <p className="text-xs text-soft">Detay yüklenemedi.</p>
           ) : (
-            <ul className="space-y-1.5">
-              {detayQ.data.lines.map((l, i) => (
-                <li key={l.productUid + i} className="flex items-center justify-between gap-2 text-xs">
-                  <span className="min-w-0 truncate">
-                    {l.name}
-                    <span className="ml-1 text-soft">
-                      ×{miktar(l.quantity)}
-                      {l.unit ? ` ${l.unit}` : ""} · {fiyat(l.unitPrice, siparis.curCode)}
+            <>
+              <ul className="space-y-1.5">
+                {detayQ.data.lines.map((l, i) => (
+                  <li
+                    key={l.productUid + i}
+                    className="flex items-center justify-between gap-2 text-xs"
+                  >
+                    <span className="min-w-0 truncate">
+                      {l.name}
+                      <span className="ml-1 text-soft">
+                        ×{miktar(l.quantity)}
+                        {l.unit ? ` ${l.unit}` : ""} · {fiyat(l.unitPrice, siparis.curCode)}
+                      </span>
                     </span>
-                  </span>
-                  <span className="shrink-0 font-medium">{fiyat(l.lineTotal, siparis.curCode)}</span>
-                </li>
-              ))}
-            </ul>
+                    <span className="shrink-0 font-medium">
+                      {fiyat(l.lineTotal, siparis.curCode)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              {/* TESLİMAT — "kargom nerede?" sorusunun cevabı.
+                  Takip numarası mağaza girene kadar boştur; boşken satır hiç
+                  çizilmez, çünkü boş bir "Takip No: —" satırı müşteriye
+                  kargonun kaybolduğunu düşündürür. */}
+              {detayQ.data.shipperCompName ||
+              detayQ.data.trackingCode ||
+              Number(detayQ.data.shippingFee) > 0 ? (
+                <dl className="mt-3 space-y-1 border-t border-line pt-3 text-xs">
+                  {detayQ.data.shipperCompName ? (
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-soft">Teslimat</dt>
+                      <dd>{detayQ.data.shipperCompName}</dd>
+                    </div>
+                  ) : null}
+                  {Number(detayQ.data.shippingFee) > 0 ? (
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-soft">Kargo Ücreti</dt>
+                      <dd>{fiyat(detayQ.data.shippingFee, siparis.curCode)}</dd>
+                    </div>
+                  ) : null}
+                  {detayQ.data.trackingCode ? (
+                    <div className="flex justify-between gap-2">
+                      <dt className="text-soft">Takip No</dt>
+                      <dd className="font-mono">{detayQ.data.trackingCode}</dd>
+                    </div>
+                  ) : null}
+                  {detayQ.data.despatchAddress ? (
+                    <div className="flex justify-between gap-2">
+                      <dt className="shrink-0 text-soft">Adres</dt>
+                      <dd className="text-right">
+                        {detayQ.data.despatchAddress}
+                        {detayQ.data.despatchCity ? `, ${detayQ.data.despatchCity}` : ""}
+                      </dd>
+                    </div>
+                  ) : null}
+                </dl>
+              ) : null}
+            </>
           )}
         </div>
       ) : null}
@@ -322,5 +392,56 @@ function AdreslerBolumu() {
           </ul>
         )}
       </section>
+  );
+}
+
+/**
+ * E-POSTA DOĞRULAMA DURUMU.
+ *
+ * Doğrulanmış hesapta yalnız küçük bir rozet; doğrulanmamışta bağlantıyı
+ * yeniden isteme düğmesi. Doğrulama alışverişi ENGELLEMEZ — engelleseydi,
+ * e-postası eline geçmeyen müşteri sipariş veremezdi ve bu, çözdüğünden çok
+ * daha büyük bir sorun olurdu.
+ */
+function EpostaDurumu() {
+  const token = useAuthStore((s) => s.token);
+  const account = useAuthStore((s) => s.account);
+  const [gonderildi, setGonderildi] = useState(false);
+  const [islemde, setIslemde] = useState(false);
+
+  if (!account) return null;
+  if (account.emailVerified) {
+    return (
+      <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-success">
+        <BadgeCheck className="size-4" /> E-posta doğrulandı
+      </p>
+    );
+  }
+
+  const gonder = async () => {
+    setIslemde(true);
+    try {
+      await dogrulamaMailiGonder(token);
+      setGonderildi(true);
+      toast.success("Doğrulama bağlantısı e-postanıza gönderildi.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Doğrulama e-postası gönderilemedi.");
+    } finally {
+      setIslemde(false);
+    }
+  };
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-line bg-background p-3">
+      <span className="text-xs text-soft">E-posta adresiniz doğrulanmamış.</span>
+      <button
+        type="button"
+        onClick={gonder}
+        disabled={islemde || gonderildi}
+        className="rounded-lg border border-line px-2.5 py-1 text-xs font-medium transition hover:bg-surface disabled:opacity-40"
+      >
+        {gonderildi ? "Gönderildi" : "Doğrulama bağlantısı gönder"}
+      </button>
+    </div>
   );
 }

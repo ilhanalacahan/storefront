@@ -5,6 +5,8 @@ import { toast } from "sonner";
 
 import {
   adresYaz,
+  kargoSec,
+  kargoSecenekleri,
   kuponKaldir,
   kuponUygula,
   satirAyarla,
@@ -78,6 +80,39 @@ export function useAdresYaz() {
   return useMutation({
     mutationFn: (input: CartAddressInput) => adresYaz(cartUid, input, token || null),
     onSuccess: yaz,
+  });
+}
+
+/**
+ * Teslimat seçenekleri — ücret sepete bağlı olduğu için sorgu anahtarı sepeti
+ * TAŞIR: sepet değişince (ürün eklendi, kupon uygulandı) eşik yeniden
+ * değerlendirilmeli, yoksa "150 TL üstü ücretsiz" rozeti bayat kalır.
+ */
+export function useKargoSecenekleri() {
+  const cartUid = useCartStore((s) => s.cartUid);
+  const token = useAuthStore((s) => s.token);
+  const { data: sepet } = useCart();
+  return useQuery({
+    queryKey: ["kargo-secenekleri", cartUid, sepet?.subTotal ?? ""],
+    queryFn: () => kargoSecenekleri(cartUid, token || null),
+    staleTime: 30_000,
+  });
+}
+
+export function useKargoSec() {
+  const cartUid = useCartStore((s) => s.cartUid);
+  const token = useAuthStore((s) => s.token);
+  const yaz = useSepetYaz();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (code: string) => kargoSec(cartUid, code, token || null),
+    onSuccess: (sepet) => {
+      yaz(sepet);
+      // Seçenek listesi de tazelenir: seçim toplamı değiştirir ve ücretsiz
+      // kargo eşiği yeni toplama göre yeniden çözülür.
+      void qc.invalidateQueries({ queryKey: ["kargo-secenekleri"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Teslimat seçilemedi."),
   });
 }
 

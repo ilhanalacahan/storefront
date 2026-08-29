@@ -1,6 +1,8 @@
 import { Zap } from "lucide-react";
 import Link from "next/link";
 
+import { BELGE_ADLARI, BELGE_SIRASI } from "@/lib/sozlesmeler";
+
 const SITE_ADI = process.env.NEXT_PUBLIC_SITE_NAME ?? "TurboStore";
 
 export function Footer() {
@@ -26,6 +28,18 @@ export function Footer() {
               <li><Link href="/urunler" className="hover:text-foreground">Tüm Ürünler</Link></li>
               <li><Link href="/sepet" className="hover:text-foreground">Sepetim</Link></li>
               <li><Link href="/hesap" className="hover:text-foreground">Hesabım</Link></li>
+            </ul>
+          </div>
+          <div className="space-y-2">
+            <p className="font-semibold">Yasal</p>
+            <ul className="space-y-1.5 text-soft">
+              {BELGE_SIRASI.map((k) => (
+                <li key={k}>
+                  <Link href={`/sozlesmeler/${k}`} className="hover:text-foreground">
+                    {BELGE_ADLARI[k]}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
           <div className="space-y-2">

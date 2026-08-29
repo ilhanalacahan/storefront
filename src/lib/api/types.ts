@@ -49,6 +49,37 @@ export interface StorefrontProduct {
   virtual: boolean;
   /** Galeri (ana görsel başta). YALNIZ detay sorgusunda dolu; listede []. */
   images: string[];
+
+  /** Varyant ailesi — YALNIZ detay sorgusunda dolu (galeriyle aynı gerekçe). */
+  isVariantMaster: boolean;
+  /** Varyant çocuğunun atası ('' = varyant ailesinde değil). */
+  parentUid: string;
+  /** Bu kartın eksen değerleri ("Renk: Kırmızı"); atada boş. */
+  options: ProductOption[];
+  /** Ailenin seçilebilir üyeleri (ata hariç). */
+  variants: ProductVariant[];
+}
+
+export interface ProductOption {
+  name: string;
+  value: string;
+}
+
+/** Seçicide gösterilen kardeş varyant — fiyat/stok sunucudan çözülmüş gelir. */
+export interface ProductVariant {
+  uid: string;
+  name: string;
+  price: string;
+  curCode: number;
+  inStock: boolean;
+  available: string;
+  options: ProductOption[];
+}
+
+/** Marka süzgeci satırı (facet). */
+export interface StorefrontBrand {
+  name: string;
+  count: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -90,14 +121,45 @@ export interface Cart {
   couponCode: string;
   taxTotal: string;
   shippingFee: string;
+  /** Seçili teslimat yöntemi ('' = seçilmedi) — seçimin tek doğruluk kaynağı. */
+  shippingMethodCode: string;
   grandTotal: string;
+  /** Adres alanları girdiyle simetriktir: yazılan her alan geri okunabilir. */
   shipName: string;
   shipAddress: string;
+  shipDistrict: string;
   shipCity: string;
+  shipCountry: string;
+  shipPostalCode: string;
+
   billName: string;
+  billCompName: string;
+  billTaxNumber: string;
+  billTaxOffice: string;
   billAddress: string;
+  billDistrict: string;
   billCity: string;
+  billCountry: string;
+  billPostalCode: string;
+
   lines: CartLine[];
+}
+
+/**
+ * Teslimat seçeneği. Ücret SEPETE GÖRE çözülmüş gelir: `price` bu sepet için
+ * ödenecek tutardır, `listPrice` tarifedeki sabit ücrettir. İkisi farklıysa
+ * `free` doludur — "49,90 yerine ücretsiz" gösterimi bundan kurulur.
+ */
+export interface ShippingMethod {
+  code: string;
+  name: string;
+  price: string;
+  listPrice: string;
+  free: boolean;
+  /** Ücretsiz kargo sınırı ('' = böyle bir sınır yok). */
+  freeOverSubtotal: string;
+  selected: boolean;
+  sortOrder: number;
 }
 
 /** cartSetAddress girdisi — tüm alanlar opsiyonel, boş string = dokunma yok değil, BOŞ yaz. */

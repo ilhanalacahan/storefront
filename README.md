@@ -53,7 +53,7 @@ Bu bir **şablondur**: fork'layın, temayı değiştirin, kendi mağazanıza dö
 ## Hızlı başlangıç
 
 Gereksinim: çalışan bir TicariCore backend'i (`:6210`) ve bir satış kanalının
-**publishable key**'i (TurboTicari → Satış Kanalları → kanal detayı).
+**publishable key**'i (TicariApp → Satış Kanalları → kanal detayı).
 
 ```bash
 npm install
@@ -62,7 +62,7 @@ npm run dev                  # http://localhost:3000
 ```
 
 Vitrin boşsa: ürünlerin kanala yayınlanması gerekir — kanalın **yayın politikası**
-(otomatik/kural) ya da ürün başına **kanal ilanı** ile (TurboTicari'den).
+(otomatik/kural) ya da ürün başına **kanal ilanı** ile (TicariApp'ten).
 
 ### Ortam değişkenleri
 
