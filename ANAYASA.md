@@ -1,8 +1,8 @@
-# TurboStoreFront Anayasası — vitrin
+# StoreFront Anayasası — vitrin
 
 > Bu belge tek başına yeterli değildir. Birden fazla depoyu bağlayan kurallar
 > genel anayasadadır: `TicariGo/ANAYASA.md`. Buradaki maddeler yalnız
-> TurboStoreFront'a özgüdür ve genel maddeleri tekrarlamaz.
+> StoreFront'a özgüdür ve genel maddeleri tekrarlamaz.
 
 Next.js (App Router) headless e-ticaret vitrini; TicariCore'un vitrin yüzeyine
 bağlanır. Para/vergi G5–G6, sipariş atomikliği G18, misafir carisi G19,

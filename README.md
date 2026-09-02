@@ -1,4 +1,4 @@
-# TurboStoreFront
+# StoreFront
 
 **TicariCore ERP üzerinde çalışan açık kaynak, headless e-ticaret vitrini.**
 Modern bir elektronik mağazası görünümünde, uçtan uca çalışan bir demo: katalog,

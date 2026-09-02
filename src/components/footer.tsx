@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { BELGE_ADLARI, BELGE_SIRASI } from "@/lib/sozlesmeler";
 
-const SITE_ADI = process.env.NEXT_PUBLIC_SITE_NAME ?? "TurboStore";
+const SITE_ADI = process.env.NEXT_PUBLIC_SITE_NAME ?? "StoreFront";
 
 export function Footer() {
   return (
@@ -47,7 +47,7 @@ export function Footer() {
             <ul className="space-y-1.5 text-soft">
               <li>
                 <a
-                  href="https://github.com/ilhanalacahan/turbostorefront"
+                  href="https://github.com/ilhanalacahan/storefront"
                   target="_blank"
                   rel="noreferrer"
                   className="hover:text-foreground"
@@ -61,7 +61,7 @@ export function Footer() {
         </div>
       </div>
       <div className="border-t border-line py-4 text-center text-xs text-soft">
-        TurboStoreFront — TicariCore headless demo · fiyatlar KDV dahildir
+        StoreFront — TicariCore headless demo · fiyatlar KDV dahildir
       </div>
     </footer>
   );

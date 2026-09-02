@@ -9,7 +9,7 @@ import type { StorefrontProduct } from "./api/types";
  * yanlış canonical yayımlamaktan iyidir değil, kötüdür.
  */
 
-export const SITE_ADI = process.env.NEXT_PUBLIC_SITE_NAME ?? "TurboStore";
+export const SITE_ADI = process.env.NEXT_PUBLIC_SITE_NAME ?? "StoreFront";
 
 /** Sitenin kamusal kökü (sonda / YOK). */
 export const SITE_URL = (

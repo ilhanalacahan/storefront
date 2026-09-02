@@ -9,7 +9,7 @@ import { useSepetAdedi } from "@/hooks/use-cart";
 import { useAuthStore } from "@/store/auth-store";
 import { useCartStore } from "@/store/cart-store";
 
-const SITE_ADI = process.env.NEXT_PUBLIC_SITE_NAME ?? "TurboStore";
+const SITE_ADI = process.env.NEXT_PUBLIC_SITE_NAME ?? "StoreFront";
 
 /**
  * Üst çubuk — sticky. Sepet düğmesi sayfaya gitmez, yandan açılan çekmeceyi
