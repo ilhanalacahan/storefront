@@ -7,15 +7,22 @@ import {
   KatalogBos,
   KatalogHata,
   KatalogSuzgecCubugu,
+  NitelikSuzgeci,
   SAYFA_BOYU,
   Sayfalama,
   UrunIzgarasi,
   katalogLinkKurucu,
   katalogSorgusuCoz,
+  suzgecVarMi,
   type HamKatalogSorgusu,
 } from "@/components/katalog-listesi";
 import { Kirinti, type KirintiOgesi } from "@/components/kirinti";
-import { kategoriGetir, markalariGetir, urunSayfasiGetir } from "@/lib/api/catalog";
+import {
+  kategoriGetir,
+  markalariGetir,
+  nitelikleriGetir,
+  urunSayfasiGetir,
+} from "@/lib/api/catalog";
 import { kategoriYolu } from "@/lib/kategori";
 
 /**
@@ -66,19 +73,30 @@ export default async function KategoriSayfasi({ params, searchParams }: Props) {
 
   let sonuc: Awaited<ReturnType<typeof urunSayfasiGetir>> = { urunler: [], toplam: 0 };
   let markalar: Awaited<ReturnType<typeof markalariGetir>> = [];
+  let nitelikler: Awaited<ReturnType<typeof nitelikleriGetir>> = [];
   let hata = "";
   try {
-    [sonuc, markalar] = await Promise.all([
+    [sonuc, markalar, nitelikler] = await Promise.all([
       urunSayfasiGetir({
         categoryUid: kategori.uid,
         search: sorgu.ara,
         brand: sorgu.marka,
         sort: sorgu.sirala,
         inStock: sorgu.stokta,
+        attributes: sorgu.nitelikler,
         limit: SAYFA_BOYU,
         offset: (sorgu.sayfa - 1) * SAYFA_BOYU,
       }),
-      markalariGetir({ categoryUid: kategori.uid, search: sorgu.ara }).catch(() => []),
+      markalariGetir({
+        categoryUid: kategori.uid,
+        search: sorgu.ara,
+        attributes: sorgu.nitelikler,
+      }).catch(() => []),
+      nitelikleriGetir({
+        categoryUid: kategori.uid,
+        search: sorgu.ara,
+        brand: sorgu.marka,
+      }).catch(() => []),
     ]);
   } catch (e) {
     hata = e instanceof Error ? e.message : "Ürünler yüklenemedi.";
@@ -87,7 +105,7 @@ export default async function KategoriSayfasi({ params, searchParams }: Props) {
   const yol = kategoriYolu(kategori);
   const linkYap = katalogLinkKurucu(yol, sorgu);
   const sonSayfa = Math.max(1, Math.ceil(sonuc.toplam / SAYFA_BOYU));
-  const suzgecVar = Boolean(sorgu.ara || sorgu.marka || sorgu.stokta);
+  const suzgecVar = suzgecVarMi(sorgu);
 
   const kirinti: KirintiOgesi[] = [
     ...kategori.ancestors.map((a) => ({ ad: a.name, href: kategoriYolu(a) })),
@@ -146,6 +164,7 @@ export default async function KategoriSayfasi({ params, searchParams }: Props) {
       ) : null}
 
       <KatalogSuzgecCubugu sorgu={sorgu} markalar={markalar} linkYap={linkYap} />
+      <NitelikSuzgeci facetler={nitelikler} sorgu={sorgu} linkYap={linkYap} />
 
       {hata ? (
         <KatalogHata mesaj={hata} />

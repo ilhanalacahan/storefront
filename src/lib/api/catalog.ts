@@ -1,5 +1,5 @@
 import { apiSunucu, apiIstemci, sorgu } from "./client";
-import type { ProductCategoryLink, StorefrontProduct } from "./types";
+import type { ProductAttributeType, ProductCategoryLink, StorefrontProduct } from "./types";
 
 /**
  * Katalog okuma — hem sunucudan (ISR'lı sayfa iskeleti) hem tarayıcıdan
@@ -33,6 +33,21 @@ export interface UrunListeParams {
   /** KDV dahil fiyat aralığı ('' = sınır yok). */
   minPrice?: string;
   maxPrice?: string;
+  /**
+   * Nitelik süzgeci {anahtar: değer}; anahtarlar arasında VE. Değerler
+   * nitelikleriGetir()'in verdiği metinlerdir — sunucu jsonb metniyle
+   * karşılaştırır, sayı da metin olarak gider.
+   */
+  attributes?: Record<string, string>;
+}
+
+/** {anahtar: değer} → {"attr.anahtar": değer} (sorgu dizesi sözleşmesi). */
+function nitelikParametreleri(attributes?: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(attributes ?? {})) {
+    if (k && v) out[`attr.${k}`] = v;
+  }
+  return out;
 }
 
 /** Liste yanıtı: ürünler + TOPLAM (sayfa numarası göstermek için). */
@@ -58,6 +73,7 @@ function listeYolu(params: UrunListeParams): string {
     inStock: params.inStock ? "1" : undefined,
     minPrice: params.minPrice,
     maxPrice: params.maxPrice,
+    ...nitelikParametreleri(params.attributes),
   })}`;
 }
 
@@ -97,10 +113,46 @@ export async function markalariGetir(
       collection: params.collectionUid,
       minPrice: params.minPrice,
       maxPrice: params.maxPrice,
+      ...nitelikParametreleri(params.attributes),
     })}`,
     { revalidate: 300 },
   );
   return d.brands;
+}
+
+/** Facet'teki tek değer ve kaç üründe geçtiği. */
+export interface StorefrontAttributeValue {
+  value: string;
+  count: number;
+}
+
+/** Nitelik ekseni — etiket ve tip kategori şablonundan ('' = şablon dışı anahtar). */
+export interface StorefrontAttributeFacet {
+  key: string;
+  label: string;
+  type: ProductAttributeType;
+  values: StorefrontAttributeValue[];
+}
+
+/**
+ * Nitelik facet'leri. NİTELİK süzgecini kendisi yok sayar — bir değer
+ * seçiliyken ötekiler seçilebilir kalmalı; arama/kategori/marka/fiyat uygulanır.
+ */
+export async function nitelikleriGetir(
+  params: Omit<UrunListeParams, "limit" | "offset" | "sort" | "inStock" | "attributes"> = {},
+): Promise<StorefrontAttributeFacet[]> {
+  const d = await apiSunucu<{ attributes: StorefrontAttributeFacet[] }>(
+    `/attributes${sorgu({
+      search: params.search,
+      category: params.categoryUid,
+      collection: params.collectionUid,
+      brand: params.brand,
+      minPrice: params.minPrice,
+      maxPrice: params.maxPrice,
+    })}`,
+    { revalidate: 300 },
+  );
+  return d.attributes;
 }
 
 /**

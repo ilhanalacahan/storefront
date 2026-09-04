@@ -17,6 +17,7 @@ Bu bir **şablondur**: fork'layın, temayı değiştirin, kendi mağazanıza dö
 |---|---|
 | Ürün listesi + arama | URL paramlı (`/urunler?ara=…`), 300 ms debounce, SSR + ISR; sıralama, marka, stok ve fiyat süzgeçleri sunucuda |
 | Kategori ağacı + sayfası | `/categories` düz ağaç (`parentUid`) → menü, `/kategoriler` dizini, `/kategori/[handle]` sayfası (kırıntı + alt kategoriler); liste **alt ağacı** kapsar |
+| Nitelik süzgeci | `/attributes` facet'i (kategori şablonundan etiket/tip) → kategori ve arama sayfasında `?n.<anahtar>=<değer>` çipleri; anahtarlar arasında VE |
 | Koleksiyonlar | `/koleksiyon/[handle]` — kürasyon sıralı pazarlama listeleri |
 | Ürün detayı | Statik iskelet (ISR 120 sn) + **canlı fiyat/stok katmanı** (30 sn'de bir tazelenir); kırıntı yolu, **Teknik Özellikler** (kategori şablonlu `attributes`), varyant seçici |
 | Görsel galerisi | ERP'deki `product_image` galerisi, alt metniyle (`gallery` alanı) |

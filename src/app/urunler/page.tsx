@@ -5,14 +5,21 @@ import {
   KatalogBos,
   KatalogHata,
   KatalogSuzgecCubugu,
+  NitelikSuzgeci,
   SAYFA_BOYU,
   Sayfalama,
   UrunIzgarasi,
   katalogLinkKurucu,
   katalogSorgusuCoz,
+  suzgecVarMi,
   type HamKatalogSorgusu,
 } from "@/components/katalog-listesi";
-import { kategorileriGetir, markalariGetir, urunSayfasiGetir } from "@/lib/api/catalog";
+import {
+  kategorileriGetir,
+  markalariGetir,
+  nitelikleriGetir,
+  urunSayfasiGetir,
+} from "@/lib/api/catalog";
 import { kategoriYolu } from "@/lib/kategori";
 
 /**
@@ -45,21 +52,32 @@ export default async function Urunler({ searchParams }: { searchParams: Promise<
   let sonuc: Awaited<ReturnType<typeof urunSayfasiGetir>> = { urunler: [], toplam: 0 };
   let kategoriler: Awaited<ReturnType<typeof kategorileriGetir>> = [];
   let markalar: Awaited<ReturnType<typeof markalariGetir>> = [];
+  let nitelikler: Awaited<ReturnType<typeof nitelikleriGetir>> = [];
   let hata = "";
   try {
-    // Üçü paralel: liste her istekte, kategori/marka facet'leri 5 dk ISR'lı.
-    [sonuc, kategoriler, markalar] = await Promise.all([
+    // Dördü paralel: liste her istekte, kategori/marka/nitelik facet'leri 5 dk ISR'lı.
+    [sonuc, kategoriler, markalar, nitelikler] = await Promise.all([
       urunSayfasiGetir({
         search: sorgu.ara,
         categoryUid: kategori,
         brand: sorgu.marka,
         sort: sorgu.sirala,
         inStock: sorgu.stokta,
+        attributes: sorgu.nitelikler,
         limit: SAYFA_BOYU,
         offset: (sorgu.sayfa - 1) * SAYFA_BOYU,
       }),
       kategorileriGetir().catch(() => []),
-      markalariGetir({ search: sorgu.ara, categoryUid: kategori }).catch(() => []),
+      markalariGetir({ search: sorgu.ara, categoryUid: kategori, attributes: sorgu.nitelikler }).catch(
+        () => [],
+      ),
+      // Tüm katalogda nitelik ekseni yalnız arama ya da kategori daraltmasında
+      // anlamlı — bütün kataloğun karışık niteliklerini listelemek gürültü olurdu.
+      sorgu.ara || kategori
+        ? nitelikleriGetir({ search: sorgu.ara, categoryUid: kategori, brand: sorgu.marka }).catch(
+            () => [],
+          )
+        : Promise.resolve([]),
     ]);
   } catch (e) {
     hata = e instanceof Error ? e.message : "Ürünler yüklenemedi.";
@@ -69,7 +87,7 @@ export default async function Urunler({ searchParams }: { searchParams: Promise<
   const seciliKategori = kategoriler.find((k) => k.uid === kategori);
   const kokler = kategoriler.filter((k) => !k.parentUid || !kategoriler.some((p) => p.uid === k.parentUid));
   const linkYap = katalogLinkKurucu("/urunler", sorgu, kategori ? { kategori } : {});
-  const suzgecVar = Boolean(sorgu.ara || sorgu.marka || sorgu.stokta || kategori);
+  const suzgecVar = suzgecVarMi(sorgu) || Boolean(kategori);
 
   return (
     <div className="space-y-5 py-6">
@@ -118,6 +136,7 @@ export default async function Urunler({ searchParams }: { searchParams: Promise<
       ) : null}
 
       <KatalogSuzgecCubugu sorgu={sorgu} markalar={markalar} linkYap={linkYap} />
+      <NitelikSuzgeci facetler={nitelikler} sorgu={sorgu} linkYap={linkYap} />
 
       {hata ? (
         <KatalogHata mesaj={hata} />

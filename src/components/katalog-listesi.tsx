@@ -2,7 +2,7 @@ import { ChevronLeft, ChevronRight, PackageSearch } from "lucide-react";
 import Link from "next/link";
 
 import { ProductCard } from "@/components/product-card";
-import type { StorefrontBrandItem } from "@/lib/api/catalog";
+import type { StorefrontAttributeFacet, StorefrontBrandItem } from "@/lib/api/catalog";
 import type { StorefrontProduct } from "@/lib/api/types";
 
 /**
@@ -26,13 +26,18 @@ export const SIRALAMALAR = [
   { deger: "yeni", etiket: "En yeni" },
 ] as const;
 
-/** URL'den okunan ham sorgu (Next searchParams). */
+/**
+ * URL'den okunan ham sorgu (Next searchParams). Nitelik süzgeçleri `n.<anahtar>`
+ * parametresiyle gelir (?n.renk=Kırmızı) — anahtar kümesi kategoriye göre
+ * değiştiği için sabit alan listesi yoktur.
+ */
 export interface HamKatalogSorgusu {
   ara?: string;
   marka?: string;
   sirala?: string;
   stokta?: string;
   sayfa?: string;
+  [parametre: string]: string | string[] | undefined;
 }
 
 /** Çözülmüş süzgeç durumu. */
@@ -42,16 +47,37 @@ export interface KatalogSorgusu {
   sirala: string;
   stokta: boolean;
   sayfa: number;
+  /** Seçili nitelikler {anahtar: değer}. */
+  nitelikler: Record<string, string>;
+}
+
+const NITELIK_ONEKI = "n.";
+
+function tek(v: string | string[] | undefined): string {
+  return (Array.isArray(v) ? v[0] : v) ?? "";
 }
 
 export function katalogSorgusuCoz(p: HamKatalogSorgusu): KatalogSorgusu {
+  const nitelikler: Record<string, string> = {};
+  for (const [ad, deger] of Object.entries(p)) {
+    if (!ad.startsWith(NITELIK_ONEKI)) continue;
+    const k = ad.slice(NITELIK_ONEKI.length).trim();
+    const v = tek(deger).trim();
+    if (k && v) nitelikler[k] = v;
+  }
   return {
-    ara: (p.ara ?? "").trim(),
-    marka: (p.marka ?? "").trim(),
-    sirala: (p.sirala ?? "").trim(),
-    stokta: p.stokta === "1",
-    sayfa: Math.max(1, Number(p.sayfa) || 1),
+    ara: tek(p.ara).trim(),
+    marka: tek(p.marka).trim(),
+    sirala: tek(p.sirala).trim(),
+    stokta: tek(p.stokta) === "1",
+    sayfa: Math.max(1, Number(tek(p.sayfa)) || 1),
+    nitelikler,
   };
+}
+
+/** Süzgeç var mı — "sonuç yok" mesajı ve "temizle" bağlantısı bunu sorar. */
+export function suzgecVarMi(s: KatalogSorgusu): boolean {
+  return Boolean(s.ara || s.marka || s.stokta || Object.keys(s.nitelikler).length);
 }
 
 /** Bir süzgecin yeni değeri; verilmeyen alan mevcut değerini korur. */
@@ -62,6 +88,8 @@ export interface SorguDegisikligi {
   /** "1" = yalnız stoktakiler, "" = süzgeci kaldır. */
   stokta?: string;
   sayfa?: number;
+  /** Tek niteliği değiştir; deger "" = o anahtarı kaldır. */
+  nitelik?: { anahtar: string; deger: string };
 }
 
 export type LinkKurucu = (d: SorguDegisikligi) => string;
@@ -89,6 +117,12 @@ export function katalogLinkKurucu(
     yaz("sirala", d.sirala, mevcut.sirala);
     const stok = d.stokta !== undefined ? d.stokta === "1" : mevcut.stokta;
     if (stok) p.set("stokta", "1");
+    const nitelikler = { ...mevcut.nitelikler };
+    if (d.nitelik) {
+      if (d.nitelik.deger) nitelikler[d.nitelik.anahtar] = d.nitelik.deger;
+      else delete nitelikler[d.nitelik.anahtar];
+    }
+    for (const [k, v] of Object.entries(nitelikler)) p.set(`${NITELIK_ONEKI}${k}`, v);
     const n = d.sayfa ?? 1;
     if (n > 1) p.set("sayfa", String(n));
     const qs = p.toString();
@@ -147,6 +181,54 @@ export function KatalogSuzgecCubugu({
           </div>
         </>
       ) : null}
+    </div>
+  );
+}
+
+/** Facet değerinin gösterimi: evet/hayır çevrilir, gerisi sunucudan geldiği gibi. */
+function nitelikDegerEtiketi(tip: StorefrontAttributeFacet["type"], deger: string): string {
+  if (tip === "boolean") return deger === "true" ? "Evet" : "Hayır";
+  return deger;
+}
+
+/**
+ * Nitelik ekseni — kategori şablonundan gelen özellikler (Renk, Beden, 5G…).
+ * Her nitelik bir satırdır; tek değerli nitelik süzgeç olarak anlamsızdır ve
+ * çizilmez. Seçili değer tekrar tıklanınca kalkar; anahtarlar arasında VE.
+ */
+export function NitelikSuzgeci({
+  facetler,
+  sorgu,
+  linkYap,
+}: {
+  facetler: StorefrontAttributeFacet[];
+  sorgu: KatalogSorgusu;
+  linkYap: LinkKurucu;
+}) {
+  const gosterilen = facetler.filter((f) => f.values.length > 1 || sorgu.nitelikler[f.key]);
+  if (!gosterilen.length) return null;
+  return (
+    <div className="space-y-2 border-b border-line pb-2.5">
+      {gosterilen.map((f) => {
+        const secili = sorgu.nitelikler[f.key] ?? "";
+        return (
+          <div key={f.key} className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-soft">
+              {f.label}
+            </span>
+            {f.values.map((v) => (
+              <Link
+                key={v.value}
+                href={linkYap({ nitelik: { anahtar: f.key, deger: v.value === secili ? "" : v.value } })}
+                className={dugmeSinifi(v.value === secili)}
+              >
+                {nitelikDegerEtiketi(f.type, v.value)}{" "}
+                <span className="opacity-60">({v.count})</span>
+              </Link>
+            ))}
+          </div>
+        );
+      })}
     </div>
   );
 }
