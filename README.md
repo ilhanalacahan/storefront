@@ -19,6 +19,8 @@ Bu bir **şablondur**: fork'layın, temayı değiştirin, kendi mağazanıza dö
 | Kategori ağacı + sayfası | `/categories` düz ağaç (`parentUid`) → menü, `/kategoriler` dizini, `/kategori/[handle]` sayfası (kırıntı + alt kategoriler); liste **alt ağacı** kapsar |
 | Nitelik süzgeci | `/attributes` facet'i (kategori şablonundan etiket/tip) → kategori ve arama sayfasında `?n.<anahtar>=<değer>` çipleri; anahtarlar arasında VE |
 | Koleksiyonlar | `/koleksiyon/[handle]` — kürasyon sıralı pazarlama listeleri |
+| Yorum + puan | `/products/{uid}/reviews` — onaylı yorumlar, puan özeti, doğrulanmış alışveriş rozeti; yazma üyeye açık, **onaydan sonra** yayınlanır (TicariApp → Ürün → Yorumlar); kartta yıldız, JSON-LD `aggregateRating` |
+| Favoriler | Kalp düğmesi (kart + ürün sayfası), `/favoriler` listesi; uid kümesi `/account/favorites/uids` |
 | Ürün detayı | Statik iskelet (ISR 120 sn) + **canlı fiyat/stok katmanı** (30 sn'de bir tazelenir); kırıntı yolu, **Teknik Özellikler** (kategori şablonlu `attributes`), varyant seçici |
 | Görsel galerisi | ERP'deki `product_image` galerisi, alt metniyle (`gallery` alanı) |
 | Misafir sepeti | `cartUid` localStorage'ta; backend'de token yok, uid = yetki anahtarı |

@@ -5,7 +5,9 @@ import { CheckCircle2, Minus, Plus, XCircle } from "lucide-react";
 import { useState } from "react";
 
 import { AddToCartButton } from "@/components/add-to-cart";
+import { FavoriDugmesi } from "@/components/favori-dugmesi";
 import { Price } from "@/components/price";
+import { Yildizlar } from "@/components/yildizlar";
 import { urunGetirCanli } from "@/lib/api/catalog";
 import type { StorefrontProduct } from "@/lib/api/types";
 import { miktar } from "@/lib/format";
@@ -36,6 +38,14 @@ export function BuyBox({ baslangic }: { baslangic: StorefrontProduct }) {
         <p className="font-mono text-xs uppercase tracking-wider text-soft">{urun.code}</p>
         <h1 className="text-2xl font-bold leading-tight md:text-3xl">{urun.name}</h1>
         {urun.subtitle ? <p className="text-soft">{urun.subtitle}</p> : null}
+        {urun.ratingCount > 0 ? (
+          <a href="#yorumlar" className="inline-flex items-center gap-2 text-sm hover:underline">
+            <Yildizlar puan={urun.ratingAvg} boyut="md" />
+            <span className="text-soft">
+              {urun.ratingAvg.replace(".", ",")} · {urun.ratingCount} değerlendirme
+            </span>
+          </a>
+        ) : null}
       </div>
 
       <div className="space-y-1 rounded-2xl border border-line bg-surface p-4">
@@ -91,6 +101,7 @@ export function BuyBox({ baslangic }: { baslangic: StorefrontProduct }) {
           quantity={String(adet)}
           disabled={!urun.inStock}
         />
+        <FavoriDugmesi productUid={urun.uid} gorunum="buton" />
       </div>
 
       <ul className="space-y-1 text-xs text-soft">

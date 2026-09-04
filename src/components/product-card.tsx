@@ -1,14 +1,16 @@
 import Link from "next/link";
 
+import { FavoriDugmesi } from "@/components/favori-dugmesi";
 import { Price, DiscountBadge } from "@/components/price";
 import { ProductImage } from "@/components/product-image";
 import { QuickAddButton } from "@/components/add-to-cart";
+import { Yildizlar } from "@/components/yildizlar";
 import type { StorefrontProduct } from "@/lib/api/types";
 import { urunYolu } from "@/lib/site";
 
 /**
  * Vitrin kartı (Server Component) — statik kısmı önbelleklenebilir;
- * tek etkileşimli parça QuickAddButton'dır (client island).
+ * etkileşimli parçalar QuickAddButton ve FavoriDugmesi'dir (client island).
  */
 export function ProductCard({ urun }: { urun: StorefrontProduct }) {
   return (
@@ -36,6 +38,9 @@ export function ProductCard({ urun }: { urun: StorefrontProduct }) {
           />
         </div>
       </Link>
+      {/* Kalp, indirim rozetinin altında kalmasın diye görsel kutusunun dışına
+          değil üstüne (absolute) konur; tıklaması karta gitmez. */}
+      <FavoriDugmesi productUid={urun.uid} />
 
       <div className="flex flex-1 flex-col gap-1 p-3">
         <Link href={urunYolu(urun)} className="hover:text-accent">
@@ -43,6 +48,9 @@ export function ProductCard({ urun }: { urun: StorefrontProduct }) {
         </Link>
         {urun.subtitle ? (
           <p className="line-clamp-1 text-xs text-soft">{urun.subtitle}</p>
+        ) : null}
+        {urun.ratingCount > 0 ? (
+          <Yildizlar puan={urun.ratingAvg} etiket={`(${urun.ratingCount})`} />
         ) : null}
         <div className="mt-auto flex items-end justify-between gap-2 pt-2">
           <Price price={urun.price} compareAtPrice={urun.compareAtPrice} curCode={urun.curCode} />

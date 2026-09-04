@@ -130,6 +130,18 @@ export function UrunYapisalVerisi({
             image: gorseller,
             ...(urun.brandName ? { brand: { "@type": "Brand", name: urun.brandName } } : {}),
             ...(urun.categories.length ? { category: urun.categories[0].fullName } : {}),
+            // Puan yalnız onaylı yorumlardan gelir; sayfadaki yıldızla aynı kaynak.
+            ...(urun.ratingCount > 0
+              ? {
+                  aggregateRating: {
+                    "@type": "AggregateRating",
+                    ratingValue: urun.ratingAvg,
+                    reviewCount: urun.ratingCount,
+                    bestRating: 5,
+                    worstRating: 1,
+                  },
+                }
+              : {}),
             // Teknik özellikler ekrandaki tabloyla aynı kaynaktan (attributes).
             ...(urun.attributes.length
               ? {

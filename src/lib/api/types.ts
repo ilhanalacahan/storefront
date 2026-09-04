@@ -50,6 +50,9 @@ export interface StorefrontProduct {
   leadDays: number;
   /** İlan satırı yok; kanalın yayın politikasından görünüyor. */
   virtual: boolean;
+  /** Puan özeti — onaylı yorumlardan ('' / 0 = puan yok). Listede de dolu. */
+  ratingAvg: string;
+  ratingCount: number;
   /** Galeri (ana görsel başta). YALNIZ detay sorgusunda dolu; listede []. */
   images: string[];
   /** Aynı galeri, alt metniyle — erişilebilirlik ve görsel arama bunu okur. */
@@ -125,6 +128,50 @@ export interface ProductVariant {
 export interface StorefrontBrand {
   name: string;
   count: number;
+}
+
+// ---------------------------------------------------------------------------
+// Yorum / puan
+// ---------------------------------------------------------------------------
+
+/** Vitrinde gösterilen yorum; yazar adı MASKELİ gelir ("Ahmet Y."). */
+export interface ProductReview {
+  uid: string;
+  rating: number;
+  title: string;
+  body: string;
+  authorName: string;
+  /** RFC3339 */
+  createdAt: string;
+  /** Yazım anında doğrulanmış alışveriş damgası. */
+  verified: boolean;
+  /** Mağaza yanıtı ('' = yok). */
+  reply: string;
+  repliedAt: string;
+  /** Yalnız `mine` için anlamlı: 0 bekliyor · 1 yayında · 2 reddedildi. */
+  status: number;
+}
+
+export interface ReviewSummary {
+  /** "4.3" · '' = puan yok. */
+  average: string;
+  count: number;
+  /** [1★, 2★, 3★, 4★, 5★] sayıları. */
+  distribution: [number, number, number, number, number];
+}
+
+export interface ReviewList {
+  summary: ReviewSummary;
+  reviews: ProductReview[];
+  total: number;
+  /** Giriş yapmış müşterinin kendi yorumu (her durumda); yoksa null. */
+  mine: ProductReview | null;
+}
+
+export interface ReviewInput {
+  rating: number;
+  title?: string;
+  body: string;
 }
 
 // ---------------------------------------------------------------------------

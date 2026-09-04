@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { BadgeCheck, ChevronDown, Loader2, LogOut, MapPin, Package, User } from "lucide-react";
+import { BadgeCheck, ChevronDown, Heart, Loader2, LogOut, MapPin, Package, User } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -222,6 +222,16 @@ function HesapPaneli() {
         {account?.phone ? <p className="text-soft">{account.phone}</p> : null}
         <EpostaDurumu />
       </section>
+
+      <Link
+        href="/favoriler"
+        className="flex items-center justify-between rounded-2xl border border-line bg-surface p-5 text-sm transition hover:border-accent"
+      >
+        <span className="flex items-center gap-2 font-semibold">
+          <Heart className="size-4.5 text-danger" /> Favorilerim
+        </span>
+        <ChevronDown className="size-4 -rotate-90 text-soft" />
+      </Link>
 
       <section className="rounded-2xl border border-line bg-surface p-5">
         <h2 className="mb-3 flex items-center gap-2 font-semibold">

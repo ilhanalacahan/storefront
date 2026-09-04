@@ -8,6 +8,7 @@ import { Gallery } from "./gallery";
 import { AtaUyarisi, VaryantSecici } from "@/components/varyant-secici";
 import { UrunYapisalVerisi } from "@/components/json-ld";
 import { Kirinti, type KirintiOgesi } from "@/components/kirinti";
+import { UrunYorumlari } from "@/components/urun-yorumlari";
 import { tarih } from "@/lib/format";
 import { kategoriYolu, kategoriZinciri } from "@/lib/kategori";
 import { SITE_ADI, mutlak, urunYolu } from "@/lib/site";
@@ -115,6 +116,9 @@ export default async function UrunDetay({ params }: Props) {
 
       <TeknikOzellikler nitelikler={urun.attributes} />
       <UrunBilgileri urun={urun} />
+      {/* Yorumlar istemcide çekilir: liste kişiye özel (kendi yorumu) ve
+          onay anında tazelenmeli — ISR'lı iskelete girmez. */}
+      <UrunYorumlari productUid={urun.uid} />
     </div>
   );
 }
