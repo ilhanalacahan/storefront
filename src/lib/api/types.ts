@@ -110,6 +110,13 @@ export interface Cart {
   /** 0 açık · 1 tamamlandı (sipariş doğdu) · 2 terk edildi. */
   status: number;
   curCode: number;
+  /**
+   * Sepetin parası → TL kuru; sepet AÇILIRKEN damgalandı (K7a). Sipariş ve
+   * tahsilat bu kurla kesilir: müşteri fiyatı hangi kurla gördüyse ona satın
+   * alır, ertesi gün kur değişse de. Parasal string (G5) — istemci onunla
+   * hesap YAPMAZ, yalnız gösterir.
+   */
+  exchRate: string;
   email: string;
   customerName: string;
   phone: string;

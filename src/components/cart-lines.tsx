@@ -103,6 +103,15 @@ export function CartTotals({ sepet }: { sepet: Cart }) {
         <dt>Genel Toplam</dt>
         <dd>{fiyat(sepet.grandTotal, sepet.curCode)}</dd>
       </div>
+      {/* Kur SEPETTE SABİTLENDİ (K7a): sipariş ve tahsilat bu kurla kesilir.
+          Müşteri fiyatı hangi kurla gördüyse ona satın alır — bunu söylemek,
+          ertesi gün kur oynadığında "toplam neden değişti" sorusunu hiç
+          doğurmamaktır. TL sepette anlamsız olduğu için yazılmaz. */}
+      {sepet.curCode > 1 && Number(sepet.exchRate) > 0 ? (
+        <p className="pt-1 text-xs text-soft">
+          Kur sepette sabitlendi: 1 birim = {sepet.exchRate} TL
+        </p>
+      ) : null}
     </dl>
   );
 }
