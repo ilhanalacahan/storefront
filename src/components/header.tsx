@@ -8,6 +8,7 @@ import { KategoriMenu } from "@/components/kategori-menu";
 import { SearchBox } from "@/components/search-box";
 import { useSepetAdedi } from "@/hooks/use-cart";
 import type { StorefrontCategory } from "@/lib/api/catalog";
+import { sayfaYolu, type StorefrontPage } from "@/lib/api/cms";
 import { useAuthStore } from "@/store/auth-store";
 import { useCartStore } from "@/store/cart-store";
 
@@ -21,7 +22,14 @@ const SITE_ADI = process.env.NEXT_PUBLIC_SITE_NAME ?? "StoreFront";
  * istemci bileşenidir ama menü verisi sunucuda çekilir ve düz prop olarak
  * iner — tarayıcı açılışta ERP'ye ikinci bir istek atmaz.
  */
-export function Header({ kategoriler }: { kategoriler: StorefrontCategory[] }) {
+export function Header({
+  kategoriler,
+  sayfalar,
+}: {
+  kategoriler: StorefrontCategory[];
+  /** Üst menüde gösterilecek içerik sayfaları (showInHeader). */
+  sayfalar: StorefrontPage[];
+}) {
   const openDrawer = useCartStore((s) => s.openDrawer);
   const adet = useSepetAdedi();
   const account = useAuthStore((s) => s.account);
@@ -50,6 +58,15 @@ export function Header({ kategoriler }: { kategoriler: StorefrontCategory[] }) {
           >
             Koleksiyonlar
           </Link>
+          {sayfalar.map((s) => (
+            <Link
+              key={s.uid}
+              href={sayfaYolu(s)}
+              className="rounded-lg px-3 py-2 text-sm font-medium text-soft transition hover:bg-background hover:text-foreground"
+            >
+              {s.title}
+            </Link>
+          ))}
         </nav>
 
         <div className="hidden max-w-md flex-1 md:block">

@@ -19,6 +19,8 @@ Bu bir **şablondur**: fork'layın, temayı değiştirin, kendi mağazanıza dö
 | Kategori ağacı + sayfası | `/categories` düz ağaç (`parentUid`) → menü, `/kategoriler` dizini, `/kategori/[handle]` sayfası (kırıntı + alt kategoriler); liste **alt ağacı** kapsar |
 | Nitelik süzgeci | `/attributes` facet'i (kategori şablonundan etiket/tip) → kategori ve arama sayfasında `?n.<anahtar>=<değer>` çipleri; anahtarlar arasında VE |
 | Koleksiyonlar | `/koleksiyon/[handle]` — kürasyon sıralı pazarlama listeleri |
+| İçerik (CMS) | `/pages` → `/sayfa/[handle]` Markdown sayfalar (üst/alt menü bağlantısı), `/banners` → ana sayfa hero'su, banner kartları, site geneli duyuru çubuğu (dönemli); ham HTML işlenmez, Markdown React düğümlerine çevrilir (`lib/markdown.tsx`) |
+| Zengin açıklama | Ürün ve kategori açıklaması aynı Markdown çiziciyle (başlık, liste, kalın, bağlantı, görsel) |
 | Yorum + puan | `/products/{uid}/reviews` — onaylı yorumlar, puan özeti, doğrulanmış alışveriş rozeti; yazma üyeye açık, **onaydan sonra** yayınlanır (TicariApp → Ürün → Yorumlar); kartta yıldız, JSON-LD `aggregateRating` |
 | Favoriler | Kalp düğmesi (kart + ürün sayfası), `/favoriler` listesi; uid kümesi `/account/favorites/uids` |
 | Ürün detayı | Statik iskelet (ISR 120 sn) + **canlı fiyat/stok katmanı** (30 sn'de bir tazelenir); kırıntı yolu, **Teknik Özellikler** (kategori şablonlu `attributes`), varyant seçici |

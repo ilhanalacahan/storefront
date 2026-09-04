@@ -11,6 +11,7 @@ import { Kirinti, type KirintiOgesi } from "@/components/kirinti";
 import { UrunYorumlari } from "@/components/urun-yorumlari";
 import { tarih } from "@/lib/format";
 import { kategoriYolu, kategoriZinciri } from "@/lib/kategori";
+import { Markdown } from "@/lib/markdown";
 import { SITE_ADI, mutlak, urunYolu } from "@/lib/site";
 
 /**
@@ -108,9 +109,9 @@ export default async function UrunDetay({ params }: Props) {
       {urun.description ? (
         <section className="mt-6 max-w-3xl space-y-3">
           <h2 className="text-lg font-bold">Ürün Açıklaması</h2>
-          <p className="whitespace-pre-line text-sm leading-relaxed text-soft">
-            {urun.description}
-          </p>
+          {/* Açıklama Markdown olarak çizilir (başlık, liste, kalın, bağlantı);
+              düz metin de olduğu gibi paragraf olur. Ham HTML işlenmez. */}
+          <Markdown metin={urun.description} />
         </section>
       ) : null}
 

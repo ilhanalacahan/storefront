@@ -24,6 +24,7 @@ import {
   urunSayfasiGetir,
 } from "@/lib/api/catalog";
 import { kategoriYolu } from "@/lib/kategori";
+import { Markdown } from "@/lib/markdown";
 
 /**
  * Kategori sayfası (/kategori/[handle]) — kırıntı yolu kategorinin ata
@@ -135,7 +136,7 @@ export default async function KategoriSayfasi({ params, searchParams }: Props) {
           ) : null}
         </div>
         {kategori.description ? (
-          <p className="max-w-2xl text-sm text-soft">{kategori.description}</p>
+          <Markdown metin={kategori.description} className="max-w-2xl" />
         ) : null}
       </div>
 
