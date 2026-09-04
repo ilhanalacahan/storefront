@@ -120,6 +120,11 @@ export interface StorefrontCategory {
   sortOrder: number;
   /** Kökten uzaklık (kök = 1). */
   depth: number;
+  /** Vitrin alanları ('' = yok): sayfa metni, üst görsel, SEO meta'sı. */
+  description: string;
+  imageUrl: string;
+  metaTitle: string;
+  metaDescription: string;
   /** Kanal kapsamındaki aktif ürün sayısı, ALT AĞAÇ DAHİL (bilgilendirme amaçlı). */
   productCount: number;
 }

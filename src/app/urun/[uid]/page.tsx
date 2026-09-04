@@ -31,10 +31,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
     const urun = await urunGetir(uid);
     if (!urun) return { title: "Ürün bulunamadı" };
-    const aciklama = urun.subtitle || urun.description.slice(0, 160) || urun.name;
+    // SEO meta'sı kartta yazılmışsa o, yoksa ad/alt başlıktan türetilir.
+    const baslik = urun.metaTitle || urun.name;
+    const aciklama =
+      urun.metaDescription || urun.subtitle || urun.description.slice(0, 160) || urun.name;
     const yol = urunYolu(urun);
     return {
-      title: urun.name,
+      title: baslik,
       description: aciklama,
       // CANONICAL HANDLE'LI ADRESTİR: aynı ürüne hem /urun/<uid> hem
       // /urun/<handle> ile ulaşılabildiği için hangisinin asıl olduğunu

@@ -37,12 +37,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const kategori = await kategoriGetir(handle);
   if (!kategori) return { title: "Kategori" };
   const yol = kategoriYolu(kategori);
+  // SEO meta'sı kategori kartında yazılmışsa o, yoksa ad/açıklamadan türetilir.
+  const baslik = kategori.metaTitle || kategori.name;
+  const aciklama =
+    kategori.metaDescription ||
+    kategori.description ||
+    `${kategori.fullName} — ${kategori.productCount} ürün`;
   return {
-    title: kategori.name,
-    description: `${kategori.fullName} — ${kategori.productCount} ürün`,
+    title: baslik,
+    description: aciklama,
     // Handle'lı ve uid'li adres aynı sayfadır; asıl olan handle'lıdır.
     alternates: { canonical: yol },
-    openGraph: { title: kategori.name, url: yol },
+    openGraph: {
+      title: baslik,
+      description: aciklama,
+      url: yol,
+      images: kategori.imageUrl ? [{ url: kategori.imageUrl, alt: kategori.name }] : undefined,
+    },
   };
 }
 
@@ -105,7 +116,19 @@ export default async function KategoriSayfasi({ params, searchParams }: Props) {
             </p>
           ) : null}
         </div>
+        {kategori.description ? (
+          <p className="max-w-2xl text-sm text-soft">{kategori.description}</p>
+        ) : null}
       </div>
+
+      {kategori.imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element -- harici görsel; boyut bilinmiyor
+        <img
+          src={kategori.imageUrl}
+          alt={kategori.name}
+          className="aspect-[4/1] w-full rounded-2xl border border-line object-cover"
+        />
+      ) : null}
 
       {/* Alt kategoriler — yalnız ürünü olanlar gelir; boşsa çubuk çizilmez. */}
       {kategori.children.length > 0 ? (

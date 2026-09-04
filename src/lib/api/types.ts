@@ -25,6 +25,9 @@ export interface StorefrontProduct {
   description: string;
   handle: string;
   imageUrl: string;
+  /** Vitrin SEO meta'sı ('' = yok; sayfa ad/alt başlıktan türetir). */
+  metaTitle: string;
+  metaDescription: string;
   /** KDV DAHİL vitrin fiyatı (etiket fiyatı bağlayıcıdır). */
   price: string;
   /** Üstü çizili fiyat ('' = indirim yok). */

@@ -49,11 +49,24 @@ export default async function Kategoriler() {
 
 function KategoriKarti({ kategori }: { kategori: KategoriDugumu }) {
   return (
-    <div className="space-y-2 rounded-2xl border border-line bg-surface p-4">
+    <div className="space-y-2 overflow-hidden rounded-2xl border border-line bg-surface p-4">
+      {kategori.imageUrl ? (
+        <Link href={kategoriYolu(kategori)} className="-mx-4 -mt-4 mb-3 block">
+          {/* eslint-disable-next-line @next/next/no-img-element -- harici görsel; boyut bilinmiyor */}
+          <img
+            src={kategori.imageUrl}
+            alt={kategori.name}
+            className="aspect-[3/1] w-full object-cover"
+          />
+        </Link>
+      ) : null}
       <Link href={kategoriYolu(kategori)} className="flex items-baseline justify-between gap-2">
         <span className="font-semibold hover:text-accent">{kategori.name}</span>
         <span className="text-xs text-soft">{kategori.productCount} ürün</span>
       </Link>
+      {kategori.description ? (
+        <p className="line-clamp-2 text-xs text-soft">{kategori.description}</p>
+      ) : null}
       {kategori.cocuklar.length ? (
         <ul className="space-y-1 border-t border-line pt-2">
           {kategori.cocuklar.map((c) => (
