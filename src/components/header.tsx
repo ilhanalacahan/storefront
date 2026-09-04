@@ -1,11 +1,13 @@
 "use client";
 
-import { ShoppingBag, User, Zap } from "lucide-react";
+import { LayoutGrid, ShoppingBag, User, Zap } from "lucide-react";
 import Link from "next/link";
 import { Suspense } from "react";
 
+import { KategoriMenu } from "@/components/kategori-menu";
 import { SearchBox } from "@/components/search-box";
 import { useSepetAdedi } from "@/hooks/use-cart";
+import type { StorefrontCategory } from "@/lib/api/catalog";
 import { useAuthStore } from "@/store/auth-store";
 import { useCartStore } from "@/store/cart-store";
 
@@ -14,8 +16,12 @@ const SITE_ADI = process.env.NEXT_PUBLIC_SITE_NAME ?? "StoreFront";
 /**
  * Üst çubuk — sticky. Sepet düğmesi sayfaya gitmez, yandan açılan çekmeceyi
  * açar (mobil e-ticaret alışkanlığı); rozet canlı sepet adedini gösterir.
+ *
+ * Kategori listesi layout'tan (Server Component, 5 dk ISR) gelir: header
+ * istemci bileşenidir ama menü verisi sunucuda çekilir ve düz prop olarak
+ * iner — tarayıcı açılışta ERP'ye ikinci bir istek atmaz.
  */
-export function Header() {
+export function Header({ kategoriler }: { kategoriler: StorefrontCategory[] }) {
   const openDrawer = useCartStore((s) => s.openDrawer);
   const adet = useSepetAdedi();
   const account = useAuthStore((s) => s.account);
@@ -31,6 +37,7 @@ export function Header() {
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">
+          <KategoriMenu kategoriler={kategoriler} />
           <Link
             href="/urunler"
             className="rounded-lg px-3 py-2 text-sm font-medium text-soft transition hover:bg-background hover:text-foreground"
@@ -75,11 +82,22 @@ export function Header() {
         </div>
       </div>
 
-      {/* Mobil arama — ayrı satır (başparmak erişimi) */}
-      <div className="border-t border-line px-4 py-2 md:hidden">
-        <Suspense>
-          <SearchBox />
-        </Suspense>
+      {/* Mobil arama + kategori kısayolu — ayrı satır (başparmak erişimi) */}
+      <div className="flex items-center gap-2 border-t border-line px-4 py-2 md:hidden">
+        <div className="flex-1">
+          <Suspense>
+            <SearchBox />
+          </Suspense>
+        </div>
+        {kategoriler.length ? (
+          <Link
+            href="/kategoriler"
+            aria-label="Kategoriler"
+            className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-line text-soft transition hover:text-foreground"
+          >
+            <LayoutGrid className="size-5" />
+          </Link>
+        ) : null}
       </div>
     </header>
   );

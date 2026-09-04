@@ -51,14 +51,28 @@ kanallar arası kimlik taşınmaz.
 *Neden:* kanal carisi ve fiyat bağlamı kanala aittir (G19, G10); tek bir kimliğin
 iki kanalda dolaşması, hangi kanalın müşterisi olduğu belirsiz bir hesap üretir.
 
-### V7 — Liste sorgusu kırpılır, görseller yalnız detayda gelir
+### V7 — Liste sorgusu kırpılır, ağır alanlar yalnız detayda gelir
 
 Liste sorgusu sayfa başına en çok **60** kayıt döndürür — sunucu kırpar, istemci
-daha fazlasını isteyemez. `images` alanı **yalnız detay** sorgusunda doludur;
-listede boş dizi döner.
+daha fazlasını isteyemez. `images`/`gallery`, `categories`, `attributes`,
+`options` ve `variants` **yalnız detay** sorgusunda doludur; listede boş dizi
+döner (null değil).
 
 *Neden:* vitrin listesi kataloğun tamamını çekmeye çalışırsa ilk boyama süresi
-görsel yüküyle çöker.
+görsel yüküyle çöker; kategori ve nitelik şablonu ise ürün başına ayrı
+sorgudur (N+1) ve kart onları zaten göstermez.
+
+### V9 — Kategori ağacı düz listedir, sayfa alt ağacı kapsar
+
+`/categories` ağacı **düz liste** verir (`parentUid`, `depth`, `sortOrder`);
+menü, kırıntı ve dizin ağacı `lib/kategori.ts` ile kurar — ikinci bir ağaç
+kurucu yazılmaz. `productCount` ve kategori süzgeci **alt ağacı kapsar**:
+"Elektronik" sayfası "Telefon"un ürünlerini de listeler. Kategori adresi
+ürünle aynı kuraldadır: handle varsa okunabilir, yoksa uid (`kategoriYolu`).
+
+*Neden:* iç içe ağaç üç yüzeye üç şekil isterdi; alt ağacı kapsamayan
+kategori sayfası, yalnız yaprağa ürün bağlayan bir katalogda üst kategorileri
+boş gösterirdi.
 
 ### V8 — Next.js sürüm notları
 

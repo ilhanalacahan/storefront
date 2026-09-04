@@ -1,13 +1,15 @@
 import type { MetadataRoute } from "next";
 
-import { koleksiyonlariGetir, urunleriGetir } from "@/lib/api/catalog";
+import { kategorileriGetir, koleksiyonlariGetir, urunleriGetir } from "@/lib/api/catalog";
+import { kategoriYolu } from "@/lib/kategori";
 import { BELGE_SIRASI } from "@/lib/sozlesmeler";
 import { SITE_URL, urunYolu } from "@/lib/site";
 
 /**
  * sitemap.xml — arama motoruna "bu sitede şunlar var" listesi.
  *
- * KAPSAM: statik sayfalar + yasal metinler + koleksiyonlar + ürünler.
+ * KAPSAM: statik sayfalar + yasal metinler + kategoriler + koleksiyonlar +
+ * ürünler.
  * Ürünler kanalın vitrininden gelir; yayında olmayan ürün listede olmaz —
  * sitemap, kapsam kuralının ikinci bir kopyası DEĞİL, aynı ucun çıktısıdır.
  *
@@ -30,6 +32,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/`, lastModified: simdi, changeFrequency: "daily", priority: 1 },
     { url: `${SITE_URL}/urunler`, lastModified: simdi, changeFrequency: "daily", priority: 0.9 },
     {
+      url: `${SITE_URL}/kategoriler`,
+      lastModified: simdi,
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
+    {
       url: `${SITE_URL}/koleksiyonlar`,
       lastModified: simdi,
       changeFrequency: "weekly",
@@ -42,6 +50,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.3,
     })),
   ];
+
+  // Kategoriler: handle'sız olan uid adresiyle girer (kategoriYolu) — ürünle
+  // aynı kural; kanonik adres sayfanın kendisinde de aynı fonksiyondan üretilir.
+  const kategoriler: MetadataRoute.Sitemap = await kategorileriGetir()
+    .then((liste) =>
+      liste.map((k) => ({
+        url: `${SITE_URL}${kategoriYolu(k)}`,
+        lastModified: simdi,
+        changeFrequency: "weekly" as const,
+        priority: 0.7,
+      })),
+    )
+    .catch(() => []);
 
   const koleksiyonlar: MetadataRoute.Sitemap = await koleksiyonlariGetir()
     .then((liste) =>
@@ -77,5 +98,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     if (sayfa.length < SAYFA) break;
   }
 
-  return [...sabit, ...koleksiyonlar, ...urunler];
+  return [...sabit, ...kategoriler, ...koleksiyonlar, ...urunler];
 }

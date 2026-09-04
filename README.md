@@ -15,10 +15,11 @@ Bu bir **şablondur**: fork'layın, temayı değiştirin, kendi mağazanıza dö
 
 | Özellik | Nasıl |
 |---|---|
-| Ürün listesi + arama | URL paramlı (`/urunler?ara=…`), 300 ms debounce, SSR + ISR |
-| Kategori filtresi | `storefrontCategories` ucundan çipler (`?kategori=uid`); yalnız vitrinde ürünü olan kategoriler listelenir |
-| Ürün detayı | Statik iskelet (ISR 120 sn) + **canlı fiyat/stok katmanı** (30 sn'de bir tazelenir) |
-| Görsel galerisi | ERP'deki `product_image` galerisi (`images` alanı) |
+| Ürün listesi + arama | URL paramlı (`/urunler?ara=…`), 300 ms debounce, SSR + ISR; sıralama, marka, stok ve fiyat süzgeçleri sunucuda |
+| Kategori ağacı + sayfası | `/categories` düz ağaç (`parentUid`) → menü, `/kategoriler` dizini, `/kategori/[handle]` sayfası (kırıntı + alt kategoriler); liste **alt ağacı** kapsar |
+| Koleksiyonlar | `/koleksiyon/[handle]` — kürasyon sıralı pazarlama listeleri |
+| Ürün detayı | Statik iskelet (ISR 120 sn) + **canlı fiyat/stok katmanı** (30 sn'de bir tazelenir); kırıntı yolu, **Teknik Özellikler** (kategori şablonlu `attributes`), varyant seçici |
+| Görsel galerisi | ERP'deki `product_image` galerisi, alt metniyle (`gallery` alanı) |
 | Misafir sepeti | `cartUid` localStorage'ta; backend'de token yok, uid = yetki anahtarı |
 | Slide-over sepet | Ürün eklenince yandan açılır; mobil alt navigasyon + rozet |
 | Kupon / kampanya | `cartApplyCoupon` — otomatik kampanya daha iyiyse backend reddeder ve söyler |
@@ -32,21 +33,22 @@ Bu bir **şablondur**: fork'layın, temayı değiştirin, kendi mağazanıza dö
 
 ```
                       ┌────────────────────────── Next.js (bu repo) ─────────────────────────┐
-  Tarayıcı ──────────►│  Server Components ── gqlServer ──► ISR önbelleği (60-120 sn)        │
+  Tarayıcı ──────────►│  Server Components ── apiSunucu ──► ISR önbelleği (60-300 sn)        │
     │                 │   (katalog iskeleti: SEO + ERP'ye yük bindirmeme)                    │
     │  canlı veri     │                                                                      │
-    └────────────────►│  /api/graphql proxy ── publishable key'i ekler, Authorization iletir │
+    └────────────────►│  /api/store proxy ── publishable key'i ekler, Authorization iletir   │
       (sepet, hesap,  └──────────────────────────────┬───────────────────────────────────────┘
        ödeme, canlı                                  │  X-Publishable-Key: pk_{tenant}_…
        fiyat/stok)                                   ▼
-                                     TicariCore GraphQL  (:6210 /graphql)
+                                     TicariCore REST  (:6210 /store/v1)
 ```
 
 İki veri yolu bilinçli olarak ayrıdır:
 
-- **Statik yol** (`src/lib/api/client.ts → gqlServer`): sayfa iskeletleri sunucuda,
-  Next fetch önbelleğiyle (ISR). Her ziyaretçi ERP'yi sorgulamaz.
-- **Canlı yol** (`gqlClient → /api/graphql`): kişiye özel her şey (sepet, hesap,
+- **Statik yol** (`src/lib/api/client.ts → apiSunucu`): sayfa iskeletleri sunucuda,
+  Next fetch önbelleğiyle (ISR). Her ziyaretçi ERP'yi sorgulamaz; backend de
+  aynı GET'leri `Cache-Control: s-maxage` ile CDN'e açar.
+- **Canlı yol** (`apiIstemci → /api/store`): kişiye özel her şey (sepet, hesap,
   ödeme) ve PDP'nin güncel fiyat/stok tazelemesi. Proxy sayesinde **CORS ayarı
   gerekmez** ve publishable key istemci paketine gömülmez.
 
@@ -77,27 +79,31 @@ Vitrin boşsa: ürünlerin kanala yayınlanması gerekir — kanalın **yayın p
 ```
 src/
   app/
-    api/graphql/route.ts   # tarayıcının tek API kapısı (proxy)
+    api/store/[...yol]/    # tarayıcının tek API kapısı (proxy → /store/v1)
     page.tsx               # ana sayfa: hero + vitrin (ISR 60 sn)
     urunler/page.tsx       # liste + arama + sayfalama (URL paramlı)
+    kategoriler/           # kategori dizini (ağaç)
+    kategori/[handle]/     # kategori sayfası: kırıntı + alt kategoriler + alt ağaç listesi
+    koleksiyonlar/ · koleksiyon/[handle]/
     urun/[uid]/            # PDP: page (iskelet) + buy-box (canlı) + gallery
     sepet/page.tsx         # sepet + kupon
     odeme/page.tsx         # adres → test ödeme → sipariş (akışın kalbi)
-    hesap/page.tsx         # giriş/kayıt + sepet birleştirme + siparişler
-  components/              # header, sepet çekmecesi, ürün kartı, alt nav…
+    hesap/page.tsx         # giriş/kayıt + sepet birleştirme + siparişler + adresler
+  components/              # header + kategori menüsü, kırıntı, katalog listesi parçaları, sepet çekmecesi…
   hooks/use-cart.ts        # sepetin tek doğruluk kaynağı (TanStack Query)
-  lib/api/                 # tipler + GraphQL operasyonları (backend şemasıyla birebir)
+  lib/api/                 # tipler + REST çağrıları (backend yanıt şekilleriyle birebir)
+  lib/kategori.ts          # kategori ağacı kurucu + kanonik kategori yolu
   lib/format.ts            # para/tarih biçimleme (hesap YAPMAZ, sadece gösterir)
   store/                   # Zustand: cartUid + oturum (localStorage persist)
 ```
 
 ## API sözleşmesinin kuralları
 
-Bu vitrin TicariCore'un storefront yüzeyini kullanır. Bağlayıcı kurallar
-[`ANAYASA.md`](ANAYASA.md)'dedir (V1–V8) — parasal alanların string oluşu, KDV
-dahil etiket, sepet kimliği, `checkout` mutation'ının neden olmadığı, donmuş
-sepet, kanal kapsamlı hesaplar ve liste kırpması orada tek tek gerekçesiyle
-yazılıdır. Uygulama ayrıntıları `src/lib/api/*.ts` yorumlarındadır.
+Bu vitrin TicariCore'un `/store/v1` yüzeyini kullanır. Bağlayıcı kurallar
+[`ANAYASA.md`](ANAYASA.md)'dedir (V1–V9) — parasal alanların string oluşu, KDV
+dahil etiket, sepet kimliği, `checkout` ucunun neden olmadığı, donmuş sepet,
+kanal kapsamlı hesaplar, liste kırpması ve kategori ağacı orada tek tek
+gerekçesiyle yazılıdır. Uygulama ayrıntıları `src/lib/api/*.ts` yorumlarındadır.
 
 Kod yazmadan önce o belgeyi okuyun; burada tekrarlanmaz.
 
@@ -121,10 +127,16 @@ ilgili sağlayıcı istemcisi etkinleştirilir; bu vitrindeki akış değişmez
 
 Şablon, backend'in bugünkü yüzeyine dürüstçe yaslanır; şunlar henüz yok:
 
-- **Kargo yöntemi/ücreti seçimi** (API'de alan var, yazan uç yok).
-- **Parola sıfırlama / e-posta doğrulama.**
+- **Gerçek ödeme sağlayıcısı** — yalnız `test` sağlayıcısı kayıtlı.
+- **Kategori görseli/açıklaması**, ürün başına SEO alanı, zengin (HTML) açıklama.
+- **Yorum/puan, favori listesi, benzer ürün**, CMS (sayfa/banner/SSS), sipariş
+  iptal/iade talebi, hesapsız sipariş sorgulama.
+- Ürün ve kategori `handle`'ı yönetim formundan yazılamıyor; handle'sız kayıt
+  uid'li adres alır.
 - Üretim sertleştirmesi: storefront token'ı demo sadeliği için localStorage'ta —
   hassas kurulumlarda httpOnly cookie'ye taşıyın (proxy zaten hazır).
+
+Güncel liste: kök depodaki `docs/plan/vitrin.md`.
 
 ## Lisans
 

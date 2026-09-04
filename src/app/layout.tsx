@@ -13,6 +13,7 @@ import { SiteYapisalVerisi } from "@/components/json-ld";
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
+import { kategorileriGetir } from "@/lib/api/catalog";
 import { SITE_ADI, SITE_URL } from "@/lib/site";
 
 const ACIKLAMA =
@@ -38,13 +39,18 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  // Kategori menüsü sunucuda çekilir (5 dk ISR) ve header'a düz veri olarak
+  // iner. Backend erişilemezse menü boş çizilir — site kategorisiz de açılır,
+  // hata sayfası değil.
+  const kategoriler = await kategorileriGetir().catch(() => []);
+
   return (
     <html lang="tr" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         <SiteYapisalVerisi />
         <Providers>
-          <Header />
+          <Header kategoriler={kategoriler} />
           <main className="mx-auto w-full max-w-7xl flex-1 px-4">{children}</main>
           <Footer />
           <CartDrawer />

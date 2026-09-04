@@ -1,5 +1,5 @@
 import { apiSunucu, apiIstemci, sorgu } from "./client";
-import type { StorefrontProduct } from "./types";
+import type { ProductCategoryLink, StorefrontProduct } from "./types";
 
 /**
  * Katalog okuma — hem sunucudan (ISR'lı sayfa iskeleti) hem tarayıcıdan
@@ -103,22 +103,56 @@ export async function markalariGetir(
   return d.brands;
 }
 
+/**
+ * Kategori satırı — ağacın DÜZ listesi. Ağaç `parentUid` ile kurulur
+ * (lib/kategori.ts); liste derinlik → sıra → ad düzenindedir, ebeveyn her
+ * zaman çocuğundan önce gelir.
+ */
 export interface StorefrontCategory {
   uid: string;
   name: string;
+  /** '' = handle yok; adres uid'e düşer (kategoriYolu). */
   handle: string;
   /** Hiyerarşik ad ("Üst > Alt"). */
   fullName: string;
-  /** Kanal kapsamındaki aktif ürün sayısı (bilgilendirme amaçlı). */
+  /** '' = kök. */
+  parentUid: string;
+  sortOrder: number;
+  /** Kökten uzaklık (kök = 1). */
+  depth: number;
+  /** Kanal kapsamındaki aktif ürün sayısı, ALT AĞAÇ DAHİL (bilgilendirme amaçlı). */
   productCount: number;
 }
 
-/** Kanalın vitrininde ürünü olan kategoriler — filtre çubuğu (5 dk ISR). */
+/** Kategori sayfası başlığı: kendisi + kırıntı zinciri + ürünü olan çocukları. */
+export interface StorefrontCategoryDetail extends StorefrontCategory {
+  /** Kök → ebeveyn sırasıyla; kökte []. */
+  ancestors: ProductCategoryLink[];
+  /** Alt ağacında ürünü olan doğrudan çocuklar. */
+  children: StorefrontCategory[];
+}
+
+/**
+ * Kanalın vitrininde (alt ağacı dahil) ürünü olan kategoriler — menü, kırıntı
+ * ve süzgeç çubuğu aynı listeden beslenir (5 dk ISR).
+ */
 export async function kategorileriGetir(): Promise<StorefrontCategory[]> {
   const d = await apiSunucu<{ categories: StorefrontCategory[] }>("/categories", {
     revalidate: 300,
   });
   return d.categories;
+}
+
+/** Handle (ya da uid) ile tek kategori — bulunamazsa null (sayfa notFound'a çevirir). */
+export async function kategoriGetir(handle: string): Promise<StorefrontCategoryDetail | null> {
+  try {
+    return await apiSunucu<StorefrontCategoryDetail>(
+      `/categories/${encodeURIComponent(handle)}`,
+      { revalidate: 300 },
+    );
+  } catch {
+    return null;
+  }
 }
 
 export interface StorefrontCollection {

@@ -1,3 +1,4 @@
+import type { KirintiOgesi } from "@/components/kirinti";
 import type { StorefrontProduct } from "@/lib/api/types";
 import { SITE_ADI, SITE_URL, mutlak, urunYolu } from "@/lib/site";
 
@@ -11,7 +12,8 @@ import { SITE_ADI, SITE_URL, mutlak, urunYolu } from "@/lib/site";
  * VERİ SAYFADAKİYLE AYNI OLMAK ZORUNDA: JSON-LD'de görünmeyen bir fiyat
  * yazmak (ya da tersi) arama motorlarınca yaptırım sebebidir. Bu yüzden
  * bileşenler ekrana basılan `urun` nesnesinin AYNISINI kullanır — ikinci bir
- * veri yolu yoktur.
+ * veri yolu yoktur. Kırıntı da öyle: ekrandaki Kirinti bileşenine giden liste
+ * buraya da gider.
  *
  * `dangerouslySetInnerHTML` burada zorunludur: JSON-LD bir <script> gövdesidir.
  * İçerik JSON.stringify'dan geçer ve `<` kaçırılır — ürün adında "</script>"
@@ -62,8 +64,47 @@ export function SiteYapisalVerisi() {
 
 const PARA_BIRIMLERI: Record<number, string> = { 1: "TRY", 2: "USD", 3: "EUR" };
 
-/** Ürün sayfası — fiyat, stok, marka ve kırıntı yolu. */
-export function UrunYapisalVerisi({ urun }: { urun: StorefrontProduct }) {
+/** Kırıntı listesini schema.org BreadcrumbList'e çevirir ("Ana Sayfa" başa eklenir). */
+function kirintiListesi(ogeler: KirintiOgesi[], sonUrl?: string) {
+  const halkalar = [{ name: "Ana Sayfa", item: SITE_URL }, ...ogeler.map((o) => ({
+    name: o.ad,
+    item: o.href ? mutlak(o.href) : sonUrl,
+  }))];
+  return {
+    "@type": "BreadcrumbList",
+    itemListElement: halkalar.map((h, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: h.name,
+      ...(h.item ? { item: h.item } : {}),
+    })),
+  };
+}
+
+/** Kategori / koleksiyon sayfası kırıntısı — ekrandaki Kirinti ile aynı listeyi alır. */
+export function KirintiYapisalVerisi({ ogeler, url }: { ogeler: KirintiOgesi[]; url: string }) {
+  return (
+    <Yapisal
+      veri={{
+        "@context": "https://schema.org",
+        ...kirintiListesi(ogeler, mutlak(url)),
+      }}
+    />
+  );
+}
+
+/**
+ * Ürün sayfası — fiyat, stok, marka, teknik özellikler ve kırıntı yolu.
+ * `kirinti` kategori zinciridir (ürünün kendisi hariç); ekrandaki liste ile
+ * aynı olmak zorunda.
+ */
+export function UrunYapisalVerisi({
+  urun,
+  kirinti,
+}: {
+  urun: StorefrontProduct;
+  kirinti: KirintiOgesi[];
+}) {
   const url = mutlak(urunYolu(urun));
   const gorseller = urun.images.length ? urun.images : urun.imageUrl ? [urun.imageUrl] : [];
 
@@ -88,6 +129,17 @@ export function UrunYapisalVerisi({ urun }: { urun: StorefrontProduct }) {
             gtin13: urun.barcode || undefined,
             image: gorseller,
             ...(urun.brandName ? { brand: { "@type": "Brand", name: urun.brandName } } : {}),
+            ...(urun.categories.length ? { category: urun.categories[0].fullName } : {}),
+            // Teknik özellikler ekrandaki tabloyla aynı kaynaktan (attributes).
+            ...(urun.attributes.length
+              ? {
+                  additionalProperty: urun.attributes.map((a) => ({
+                    "@type": "PropertyValue",
+                    name: a.label,
+                    value: a.value,
+                  })),
+                }
+              : {}),
             offers: {
               "@type": "Offer",
               url,
@@ -99,19 +151,7 @@ export function UrunYapisalVerisi({ urun }: { urun: StorefrontProduct }) {
               seller: { "@id": `${SITE_URL}/#organization` },
             },
           },
-          {
-            "@type": "BreadcrumbList",
-            itemListElement: [
-              { "@type": "ListItem", position: 1, name: "Ana Sayfa", item: SITE_URL },
-              {
-                "@type": "ListItem",
-                position: 2,
-                name: "Ürünler",
-                item: `${SITE_URL}/urunler`,
-              },
-              { "@type": "ListItem", position: 3, name: urun.name, item: url },
-            ],
-          },
+          kirintiListesi([...kirinti, { ad: urun.name }], url),
         ],
       }}
     />

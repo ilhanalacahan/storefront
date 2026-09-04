@@ -49,6 +49,20 @@ export interface StorefrontProduct {
   virtual: boolean;
   /** Galeri (ana görsel başta). YALNIZ detay sorgusunda dolu; listede []. */
   images: string[];
+  /** Aynı galeri, alt metniyle — erişilebilirlik ve görsel arama bunu okur. */
+  gallery: ProductImageItem[];
+
+  /**
+   * Ürünün bağlı olduğu aktif kategoriler, EN DERİN ÖNCE — kırıntı yolu
+   * ilkini kullanır. YALNIZ detayda dolu; listede [].
+   */
+  categories: ProductCategoryLink[];
+  /**
+   * Kategori şablonuyla etiketlenmiş nitelikler ("Genişlik (mm)": "27").
+   * Değer HER ZAMAN METİNDİR; `type` nasıl gösterileceğini söyler.
+   * YALNIZ detayda dolu; listede [].
+   */
+  attributes: ProductAttribute[];
 
   /** Varyant ailesi — YALNIZ detay sorgusunda dolu (galeriyle aynı gerekçe). */
   isVariantMaster: boolean;
@@ -62,6 +76,34 @@ export interface StorefrontProduct {
 
 export interface ProductOption {
   name: string;
+  value: string;
+}
+
+/** Galeri görseli — url + alternatif metin (boşsa sunucu ürün adını koyar). */
+export interface ProductImageItem {
+  url: string;
+  alt: string;
+}
+
+/** Ürün detayındaki kategori bağı — kırıntı yolu ve kategori sayfası linki. */
+export interface ProductCategoryLink {
+  uid: string;
+  name: string;
+  handle: string;
+  /** Hiyerarşik ad ("Üst > Alt"). */
+  fullName: string;
+  /** '' = kök kategori. */
+  parentUid: string;
+}
+
+/** Nitelik tipi (kategori şablonu). '' = şablonda olmayan serbest anahtar. */
+export type ProductAttributeType = "text" | "number" | "boolean" | "date" | "select" | "";
+
+/** Teknik özellik satırı. `value` metindir; sayı/tarih/evet-hayır `type` ile biçimlenir. */
+export interface ProductAttribute {
+  key: string;
+  label: string;
+  type: ProductAttributeType;
   value: string;
 }
 

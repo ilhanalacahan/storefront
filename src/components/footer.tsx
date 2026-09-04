@@ -25,7 +25,9 @@ export function Footer() {
           <div className="space-y-2">
             <p className="font-semibold">Mağaza</p>
             <ul className="space-y-1.5 text-soft">
+              <li><Link href="/kategoriler" className="hover:text-foreground">Kategoriler</Link></li>
               <li><Link href="/urunler" className="hover:text-foreground">Tüm Ürünler</Link></li>
+              <li><Link href="/koleksiyonlar" className="hover:text-foreground">Koleksiyonlar</Link></li>
               <li><Link href="/sepet" className="hover:text-foreground">Sepetim</Link></li>
               <li><Link href="/hesap" className="hover:text-foreground">Hesabım</Link></li>
             </ul>
