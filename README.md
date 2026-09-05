@@ -135,8 +135,7 @@ ilgili sağlayıcı istemcisi etkinleştirilir; bu vitrindeki akış değişmez
 
 - **Gerçek ödeme sağlayıcısı** — yalnız `test` sağlayıcısı kayıtlı.
 - **Kategori görseli/açıklaması**, ürün başına SEO alanı, zengin (HTML) açıklama.
-- **Yorum/puan, favori listesi, benzer ürün**, CMS (sayfa/banner/SSS), sipariş
-  iptal/iade talebi, hesapsız sipariş sorgulama.
+- **Benzer ürün önerisi.**
 - Ürün ve kategori `handle`'ı yönetim formundan yazılamıyor; handle'sız kayıt
   uid'li adres alır.
 - Üretim sertleştirmesi: storefront token'ı demo sadeliği için localStorage'ta —

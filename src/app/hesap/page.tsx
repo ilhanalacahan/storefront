@@ -1,21 +1,26 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BadgeCheck, ChevronDown, Heart, Loader2, LogOut, MapPin, Package, User } from "lucide-react";
+import { BadgeCheck, ChevronDown, Heart, KeyRound, Loader2, LogOut, MapPin, Package, Pencil, Plus, Trash2, User } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import {
+  adresKaydet,
+  adresSil,
   adreslerim,
   dogrulamaMailiGonder,
   girisYap,
   kayitOl,
+  profilGuncelle,
+  sifreDegistir,
   siparisDetay,
   siparislerim,
   talepAc,
   type StorefrontOrderDetail,
 } from "@/lib/api/account";
+import type { StorefrontAddress } from "@/lib/api/types";
 import { TalepListesi } from "@/components/siparis-detay";
 import { sepetBirlestir } from "@/lib/api/cart";
 import type { StorefrontAuthPayload } from "@/lib/api/types";
@@ -219,12 +224,7 @@ function HesapPaneli() {
         </button>
       </div>
 
-      <section className="rounded-2xl border border-line bg-surface p-5 text-sm">
-        <p className="font-semibold">{account?.fullName || "—"}</p>
-        <p className="text-soft">{account?.email}</p>
-        {account?.phone ? <p className="text-soft">{account.phone}</p> : null}
-        <EpostaDurumu />
-      </section>
+      <ProfilBolumu />
 
       <Link
         href="/favoriler"
@@ -460,38 +460,370 @@ function TalepAlani({ detay, siparisUid }: { detay: StorefrontOrderDetail; sipar
   );
 }
 
+const girdiSinifi =
+  "h-10 w-full rounded-xl border border-line bg-background px-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20";
+
+/**
+ * PROFİL — ad/telefon/pazarlama izni düzenleme ve parola değiştirme.
+ *
+ * Sunucu bu iki ucu (PUT /account/me, PUT /account/password) uzun süredir
+ * sunuyordu; vitrinde kapısı yoktu. Parola değişimi eski parolayı ister —
+ * oturum çalınmış olsa bile parola değiştirilemez.
+ */
+function ProfilBolumu() {
+  const token = useAuthStore((s) => s.token);
+  const account = useAuthStore((s) => s.account);
+  const signIn = useAuthStore((s) => s.signIn);
+  const [duzenle, setDuzenle] = useState(false);
+  const [parolaAcik, setParolaAcik] = useState(false);
+  const [adSoyad, setAdSoyad] = useState(account?.fullName ?? "");
+  const [telefon, setTelefon] = useState(account?.phone ?? "");
+  const [pazarlama, setPazarlama] = useState(account?.marketingConsent ?? false);
+  const [eskiParola, setEskiParola] = useState("");
+  const [yeniParola, setYeniParola] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const kaydet = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const hesap = await profilGuncelle(token, {
+        fullName: adSoyad,
+        phone: telefon,
+        marketingConsent: pazarlama,
+      });
+      signIn(token, hesap);
+      setDuzenle(false);
+      toast.success("Profil güncellendi.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Profil güncellenemedi.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const parolaDegistir = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await sifreDegistir(token, eskiParola, yeniParola);
+      setEskiParola("");
+      setYeniParola("");
+      setParolaAcik(false);
+      toast.success("Parola değiştirildi.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Parola değiştirilemedi.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="rounded-2xl border border-line bg-surface p-5 text-sm">
+      {duzenle ? (
+        <form onSubmit={kaydet} className="space-y-3">
+          <input
+            placeholder="Ad Soyad"
+            value={adSoyad}
+            onChange={(e) => setAdSoyad(e.target.value)}
+            className={girdiSinifi}
+          />
+          <input
+            placeholder="Telefon"
+            value={telefon}
+            onChange={(e) => setTelefon(e.target.value)}
+            className={girdiSinifi}
+          />
+          <label className="flex items-center gap-2 text-xs text-soft">
+            <input
+              type="checkbox"
+              checked={pazarlama}
+              onChange={(e) => setPazarlama(e.target.checked)}
+              className="accent-[var(--accent)]"
+            />
+            Kampanya ve duyuru e-postası almak istiyorum
+          </label>
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={busy}
+              className="flex h-10 items-center gap-2 rounded-xl bg-accent px-4 font-semibold text-accent-foreground transition hover:bg-accent-hover disabled:opacity-40"
+            >
+              {busy ? <Loader2 className="size-4 animate-spin" /> : null} Kaydet
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setDuzenle(false)}
+              className="h-10 rounded-xl border border-line px-4 font-medium text-soft"
+            >
+              Vazgeç
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="font-semibold">{account?.fullName || "—"}</p>
+            <p className="text-soft">{account?.email}</p>
+            {account?.phone ? <p className="text-soft">{account.phone}</p> : null}
+            <EpostaDurumu />
+          </div>
+          <div className="flex shrink-0 gap-1">
+            <button
+              type="button"
+              title="Profili düzenle"
+              onClick={() => {
+                setAdSoyad(account?.fullName ?? "");
+                setTelefon(account?.phone ?? "");
+                setPazarlama(account?.marketingConsent ?? false);
+                setDuzenle(true);
+              }}
+              className="flex size-9 items-center justify-center rounded-xl border border-line text-soft transition hover:text-accent"
+            >
+              <Pencil className="size-4" />
+            </button>
+            <button
+              type="button"
+              title="Parolayı değiştir"
+              onClick={() => setParolaAcik((v) => !v)}
+              className="flex size-9 items-center justify-center rounded-xl border border-line text-soft transition hover:text-accent"
+            >
+              <KeyRound className="size-4" />
+            </button>
+          </div>
+        </div>
+      )}
+      {parolaAcik ? (
+        <form onSubmit={parolaDegistir} className="mt-4 space-y-2 border-t border-line pt-4">
+          <p className="text-xs font-semibold">Parolayı değiştir</p>
+          <input
+            required
+            type="password"
+            placeholder="Mevcut parola"
+            value={eskiParola}
+            onChange={(e) => setEskiParola(e.target.value)}
+            className={girdiSinifi}
+          />
+          <input
+            required
+            type="password"
+            minLength={8}
+            placeholder="Yeni parola (en az 8 karakter)"
+            value={yeniParola}
+            onChange={(e) => setYeniParola(e.target.value)}
+            className={girdiSinifi}
+          />
+          <button
+            type="submit"
+            disabled={busy}
+            className="flex h-10 items-center gap-2 rounded-xl bg-accent px-4 font-semibold text-accent-foreground transition hover:bg-accent-hover disabled:opacity-40"
+          >
+            {busy ? <Loader2 className="size-4 animate-spin" /> : null} Parolayı Güncelle
+          </button>
+        </form>
+      ) : null}
+    </section>
+  );
+}
+
+const BOS_ADRES: Partial<StorefrontAddress> & { address: string } = {
+  title: "",
+  fullName: "",
+  phone: "",
+  address: "",
+  district: "",
+  city: "",
+  country: "Türkiye",
+  postalCode: "",
+  isDefaultShip: false,
+  isDefaultBill: false,
+};
+
+/**
+ * ADRESLER — liste + ekle/düzenle/sil. Yeni kayıt POST, var olan PUT; ikisi
+ * de aynı sarmalayıcıdan geçer (uid boş/dolu). Silme geri alınamaz ama
+ * verilmiş siparişler adresi kendi damgasında taşır — geçmiş etkilenmez.
+ */
 function AdreslerBolumu() {
   const token = useAuthStore((s) => s.token);
+  const qc = useQueryClient();
   const adresQ = useQuery({
     queryKey: ["adresler"],
     queryFn: () => adreslerim(token),
   });
+  const [form, setForm] = useState<(Partial<StorefrontAddress> & { address: string }) | null>(null);
+  const [duzenlenenUid, setDuzenlenenUid] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const kaydet = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form) return;
+    if (!form.address?.trim() || !form.city?.trim()) {
+      toast.error("Adres ve şehir zorunludur.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await adresKaydet(token, form, duzenlenenUid);
+      await qc.invalidateQueries({ queryKey: ["adresler"] });
+      setForm(null);
+      setDuzenlenenUid("");
+      toast.success(duzenlenenUid ? "Adres güncellendi." : "Adres eklendi.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Adres kaydedilemedi.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const sil = async (a: StorefrontAddress) => {
+    if (!confirm(`"${a.title || a.address}" adresi silinsin mi?`)) return;
+    setBusy(true);
+    try {
+      await adresSil(token, a.uid);
+      await qc.invalidateQueries({ queryKey: ["adresler"] });
+      toast.success("Adres silindi.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Adres silinemedi.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const alan = (k: keyof StorefrontAddress, placeholder: string, gerekli = false) => (
+    <input
+      required={gerekli}
+      placeholder={placeholder}
+      value={(form?.[k] as string) ?? ""}
+      onChange={(e) => setForm((f) => (f ? { ...f, [k]: e.target.value } : f))}
+      className={girdiSinifi}
+    />
+  );
 
   return (
-      <section className="rounded-2xl border border-line bg-surface p-5">
-        <h2 className="mb-3 flex items-center gap-2 font-semibold">
+    <section className="rounded-2xl border border-line bg-surface p-5">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="flex items-center gap-2 font-semibold">
           <MapPin className="size-4.5 text-accent" /> Adreslerim
         </h2>
-        {adresQ.isPending ? (
-          <div className="h-16 animate-pulse rounded-xl bg-line/40" />
-        ) : !adresQ.data?.length ? (
-          <p className="text-sm text-soft">Kayıtlı adresiniz yok.</p>
-        ) : (
-          <ul className="grid gap-3 sm:grid-cols-2">
-            {adresQ.data.map((a) => (
-              <li key={a.uid} className="rounded-xl border border-line p-3 text-sm">
-                <p className="font-semibold">{a.title || "Adres"}</p>
-                <p className="text-soft">{a.fullName}</p>
-                <p className="text-soft">{a.address}</p>
-                <p className="text-soft">
-                  {a.district ? `${a.district}, ` : ""}
-                  {a.city}
-                </p>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+        {!form ? (
+          <button
+            type="button"
+            onClick={() => {
+              setDuzenlenenUid("");
+              setForm({ ...BOS_ADRES });
+            }}
+            className="flex items-center gap-1 rounded-xl border border-line px-3 py-1.5 text-xs font-medium text-soft transition hover:text-accent"
+          >
+            <Plus className="size-3.5" /> Yeni adres
+          </button>
+        ) : null}
+      </div>
+
+      {form ? (
+        <form onSubmit={kaydet} className="mb-4 grid gap-2 rounded-xl border border-line bg-background/40 p-3 sm:grid-cols-2">
+          {alan("title", "Başlık (Ev, İş…)")}
+          {alan("fullName", "Ad Soyad")}
+          {alan("phone", "Telefon")}
+          {alan("postalCode", "Posta kodu")}
+          <div className="sm:col-span-2">{alan("address", "Adres", true)}</div>
+          {alan("district", "İlçe")}
+          {alan("city", "Şehir", true)}
+          {alan("compName", "Firma (fatura için)")}
+          {alan("taxNumber", "Vergi no")}
+          {alan("taxOffice", "Vergi dairesi")}
+          <div className="flex items-center gap-4 text-xs text-soft sm:col-span-2">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={form.isDefaultShip ?? false}
+                onChange={(e) => setForm((f) => (f ? { ...f, isDefaultShip: e.target.checked } : f))}
+                className="accent-[var(--accent)]"
+              />
+              Varsayılan teslimat
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={form.isDefaultBill ?? false}
+                onChange={(e) => setForm((f) => (f ? { ...f, isDefaultBill: e.target.checked } : f))}
+                className="accent-[var(--accent)]"
+              />
+              Varsayılan fatura
+            </label>
+          </div>
+          <div className="flex gap-2 sm:col-span-2">
+            <button
+              type="submit"
+              disabled={busy}
+              className="flex h-10 items-center gap-2 rounded-xl bg-accent px-4 font-semibold text-accent-foreground transition hover:bg-accent-hover disabled:opacity-40"
+            >
+              {busy ? <Loader2 className="size-4 animate-spin" /> : null}
+              {duzenlenenUid ? "Güncelle" : "Ekle"}
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setForm(null);
+                setDuzenlenenUid("");
+              }}
+              className="h-10 rounded-xl border border-line px-4 font-medium text-soft"
+            >
+              Vazgeç
+            </button>
+          </div>
+        </form>
+      ) : null}
+
+      {adresQ.isPending ? (
+        <div className="h-16 animate-pulse rounded-xl bg-line/40" />
+      ) : !adresQ.data?.length ? (
+        <p className="text-sm text-soft">Kayıtlı adresiniz yok.</p>
+      ) : (
+        <ul className="grid gap-3 sm:grid-cols-2">
+          {adresQ.data.map((a) => (
+            <li key={a.uid} className="relative rounded-xl border border-line p-3 text-sm">
+              <div className="absolute right-2 top-2 flex gap-1">
+                <button
+                  type="button"
+                  title="Düzenle"
+                  disabled={busy}
+                  onClick={() => {
+                    setDuzenlenenUid(a.uid);
+                    setForm({ ...a });
+                  }}
+                  className="flex size-7 items-center justify-center rounded-lg text-soft transition hover:text-accent"
+                >
+                  <Pencil className="size-3.5" />
+                </button>
+                <button
+                  type="button"
+                  title="Sil"
+                  disabled={busy}
+                  onClick={() => void sil(a)}
+                  className="flex size-7 items-center justify-center rounded-lg text-soft transition hover:text-danger"
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              </div>
+              <p className="pr-14 font-semibold">
+                {a.title || "Adres"}
+                {a.isDefaultShip ? <span className="ml-1 text-[10px] text-accent">· teslimat</span> : null}
+                {a.isDefaultBill ? <span className="ml-1 text-[10px] text-accent">· fatura</span> : null}
+              </p>
+              <p className="text-soft">{a.fullName}</p>
+              <p className="text-soft">{a.address}</p>
+              <p className="text-soft">
+                {a.district ? `${a.district}, ` : ""}
+                {a.city}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 
