@@ -1,5 +1,12 @@
 import { apiSunucu, apiIstemci, sorgu } from "./client";
-import type { ProductAttributeType, ProductCategoryLink, StorefrontProduct } from "./types";
+import type {
+  ProductAttributeType,
+  ProductCategoryLink,
+  ProductComposeInput,
+  ProductComposeResult,
+  ProductSiblings,
+  StorefrontProduct,
+} from "./types";
 
 /**
  * Katalog okuma — hem sunucudan (ISR'lı sayfa iskeleti) hem tarayıcıdan
@@ -135,11 +142,14 @@ export interface StorefrontAttributeFacet {
 }
 
 /**
- * Nitelik facet'leri. NİTELİK süzgecini kendisi yok sayar — bir değer
- * seçiliyken ötekiler seçilebilir kalmalı; arama/kategori/marka/fiyat uygulanır.
+ * Nitelik facet'leri — BAĞIMLI: seçili nitelikler gönderilir, her eksen
+ * ÖTEKİ eksenlerin seçimiyle daralır, yalnız kendi seçimini yok sayar.
+ * "Genişlik 27" seçiliyken kalınlık ekseni 27'de var olan kalınlıkları verir,
+ * genişlik ekseni ise 34/41'e geçişi açık tutar — müşteri var olmayan
+ * kombinasyon seçip boş sonuca düşemez.
  */
 export async function nitelikleriGetir(
-  params: Omit<UrunListeParams, "limit" | "offset" | "sort" | "inStock" | "attributes"> = {},
+  params: Omit<UrunListeParams, "limit" | "offset" | "sort" | "inStock"> = {},
 ): Promise<StorefrontAttributeFacet[]> {
   const d = await apiSunucu<{ attributes: StorefrontAttributeFacet[] }>(
     `/attributes${sorgu({
@@ -149,10 +159,42 @@ export async function nitelikleriGetir(
       brand: params.brand,
       minPrice: params.minPrice,
       maxPrice: params.maxPrice,
+      ...nitelikParametreleri(params.attributes),
     })}`,
     { revalidate: 300 },
   );
   return d.attributes;
+}
+
+/**
+ * Kardeş kartlar — nitelik kümesi → kart çözümü. Aynı yaprak kategorideki
+ * kartların nitelik eksenleri ve her değerin hedef kartı (öteki eksenler
+ * korunarak). Sunucuda çözülür; sayfa iskeletiyle birlikte 120 sn ISR.
+ * Kategorisiz/niteliksiz üründe eksen listesi boştur; hata sayfayı kırmaz.
+ */
+export async function kardesleriGetir(uid: string): Promise<ProductSiblings | null> {
+  try {
+    return await apiSunucu<ProductSiblings>(`/products/${encodeURIComponent(uid)}/siblings`, {
+      revalidate: 120,
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Parametre bileşimi — PDP'de şerit boyu/adet girilince fiyat, taban miktar
+ * ve stok rozeti SUNUCUDAN gelir (G2/G5): istemci çarpmaz, gösterir. Tarayıcıdan
+ * proxy üzerinden POST; önbelleksiz (girdiye bağlı).
+ */
+export async function bilesimHesapla(
+  uid: string,
+  girdi: ProductComposeInput,
+): Promise<ProductComposeResult> {
+  return apiIstemci<ProductComposeResult>(`/products/${encodeURIComponent(uid)}/compose`, {
+    metot: "POST",
+    govde: girdi,
+  });
 }
 
 /**

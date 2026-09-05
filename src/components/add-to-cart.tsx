@@ -3,6 +3,7 @@
 import { Loader2, Plus, ShoppingCart } from "lucide-react";
 
 import { useSepeteEkle } from "@/hooks/use-cart";
+import type { SepetParametreGirdisi } from "@/lib/api/cart";
 
 /** Kart köşesindeki hızlı ekleme düğmesi (mobil UX: tek dokunuş). */
 export function QuickAddButton({
@@ -30,22 +31,30 @@ export function QuickAddButton({
   );
 }
 
-/** PDP'deki büyük "Sepete Ekle" düğmesi — miktar seçimiyle birlikte. */
+/**
+ * PDP'deki büyük "Sepete Ekle" düğmesi — miktar seçimiyle birlikte. params
+ * doluysa (şerit boyu gibi) satır o ölçüyle açılır; etiket "Stokta Yok"
+ * yerine çağıranın verdiği metni basabilir (ölçü eksikse "Ölçü girin").
+ */
 export function AddToCartButton({
   productUid,
   quantity,
   disabled,
+  params,
+  etiket,
 }: {
   productUid: string;
   quantity: string;
   disabled?: boolean;
+  params?: SepetParametreGirdisi[];
+  etiket?: string;
 }) {
   const ekle = useSepeteEkle();
   return (
     <button
       type="button"
       disabled={disabled || ekle.isPending}
-      onClick={() => ekle.mutate({ productUid, quantity })}
+      onClick={() => ekle.mutate({ productUid, quantity, params })}
       className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-accent font-semibold text-accent-foreground transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
     >
       {ekle.isPending ? (
@@ -53,7 +62,7 @@ export function AddToCartButton({
       ) : (
         <ShoppingCart className="size-5" />
       )}
-      {disabled ? "Stokta Yok" : "Sepete Ekle"}
+      {disabled ? etiket ?? "Stokta Yok" : "Sepete Ekle"}
     </button>
   );
 }

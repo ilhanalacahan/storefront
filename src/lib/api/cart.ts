@@ -33,30 +33,45 @@ export async function mevcutSepet(token: string): Promise<Cart | null> {
   return "uid" in d ? d : null;
 }
 
-/** Satır ekler; cartUid '' ise YENİ sepet açar (dönen sepetin uid'ini saklayın). */
+/** Sepete giden parametre değeri (şerit boyu gibi). */
+export interface SepetParametreGirdisi {
+  key: string;
+  value: number;
+}
+
+/**
+ * Satır ekler; cartUid '' ise YENİ sepet açar (dönen sepetin uid'ini saklayın).
+ * params doluysa aynı ürünün farklı ölçüsü AYRI satırdır; aynı ölçü toplanır.
+ */
 export async function sepeteEkle(
   cartUid: string,
   productUid: string,
   quantity: string,
   token?: string | null,
+  params?: SepetParametreGirdisi[],
 ): Promise<Cart> {
   return apiIstemci<Cart>("/carts/lines", {
     metot: "POST",
-    govde: { cartUid, productUid, quantity },
+    govde: { cartUid, productUid, quantity, params: params ?? [] },
     token,
   });
 }
 
-/** Satır miktarını MUTLAK değere çeker; "0" satırı siler. */
+/**
+ * Satır miktarını MUTLAK değere çeker; "0" satırı siler. lineUid verilirse o
+ * satır (parametreli satırlar yalnız böyle adreslenir), yoksa ürünün
+ * parametresiz satırı.
+ */
 export async function satirAyarla(
   cartUid: string,
   productUid: string,
   quantity: string,
   token?: string | null,
+  lineUid?: string,
 ): Promise<Cart> {
   return apiIstemci<Cart>(yol(cartUid, "/lines"), {
     metot: "PUT",
-    govde: { productUid, quantity },
+    govde: { productUid, quantity, lineUid: lineUid ?? "" },
     token,
   });
 }

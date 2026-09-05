@@ -78,6 +78,101 @@ export interface StorefrontProduct {
   options: ProductOption[];
   /** Ailenin seçilebilir üyeleri (ata hariç). */
   variants: ProductVariant[];
+
+  /**
+   * BELGE PARAMETRELERİ — kategori şablonu + kartın ezmeleri (şerit boyu,
+   * kaynak ücreti). PDP girdi alanlarını buradan kurar; bileşik fiyatı ve
+   * taban miktarı `/products/{uid}/compose` verir — istemci ÇARPMAZ (G2/G5).
+   * YALNIZ detayda dolu; listede [].
+   */
+  parameters: ProductParameter[];
+}
+
+/** Parametrenin belgeye etkisi (TicariCore constant.ParamEffect). */
+export const PARAMETRE_ETKI = {
+  /** Yalnız bilgi — hesaba girmez, satırda görünür. */
+  Bilgi: 0,
+  /** Taban miktarı çarpar (mm → m katsayısıyla): stok ve fiyat buna göre. */
+  MiktarCarpani: 1,
+  /** Fiyata sabit ekler (kaynak ücreti); KDV dahil belgede brütleşir. */
+  FiyatSabiti: 2,
+  /** Fiyat çözücüye dik eksen — sunucuda uygulanır. */
+  FiyatCarpani: 3,
+} as const;
+
+/** Kategori şablonundaki tek parametre tanımı — kartın ezmeleri bindirilmiş. */
+export interface ProductParameter {
+  key: string;
+  label: string;
+  effect: number;
+  unit: string;
+  /** effect=1: taban birime çevirme katsayısı (mm→m 0,001). */
+  coefficient: number;
+  min: number | null;
+  max: number | null;
+  default: number | null;
+}
+
+/** /compose girdisi — quantity adet (ölçü, para değil). */
+export interface ProductComposeInput {
+  quantity: string;
+  params: { key: string; value: number }[];
+}
+
+/** Bileşimde tek parametrenin katkısı — PDP kırılım satırı. */
+export interface ProductComposeContribution {
+  key: string;
+  label: string;
+  effect: number;
+  unit: string;
+  numValue: number;
+  coefficient: number;
+  /** effect=1: taban birime çevrilmiş ölçü; effect=2: fiyata eklenen KDV dahil tutar (string). */
+  contribution: string;
+}
+
+/** /compose yanıtı — paralar string, KDV DAHİL; rozet taban miktara göre. */
+export interface ProductComposeResult {
+  basePrice: string;
+  price: string;
+  lineTotal: string;
+  quantity: string;
+  baseQuantity: string;
+  unit: string;
+  curCode: number;
+  vatRate: string;
+  inStock: boolean;
+  available: string;
+  madeToOrder: boolean;
+  leadDays: number;
+  paramSummary: string;
+  contributions: ProductComposeContribution[];
+}
+
+/** Kardeş kart ekseninde tek değer ve gidilecek kart. */
+export interface ProductSiblingValue {
+  value: string;
+  uid: string;
+  handle: string;
+  name: string;
+  /** Bakılan kartın kendi değeri. */
+  current: boolean;
+  /** Öteki eksenler korunuyor (false = yalnız bu eksene uyan ilk kardeş). */
+  exact: boolean;
+}
+
+/** Nitelik ekseni — etiket/tip kategori şablonundan. */
+export interface ProductSiblingAxis {
+  key: string;
+  label: string;
+  type: ProductAttributeType;
+  values: ProductSiblingValue[];
+}
+
+/** /siblings yanıtı — nitelik kümesi → kart çözümü (genişlik/kalınlık seçicisi). */
+export interface ProductSiblings {
+  categoryUid: string;
+  axes: ProductSiblingAxis[];
 }
 
 export interface ProductOption {
@@ -178,8 +273,29 @@ export interface ReviewInput {
 // Sepet
 // ---------------------------------------------------------------------------
 
+/** Sepet satırındaki parametre — etiketli (sunucu şablondan damgalar). */
+export interface CartLineParam {
+  key: string;
+  label: string;
+  effect: number;
+  unit: string;
+  value: number;
+}
+
 export interface CartLine {
   productUid: string;
+  /**
+   * SATIR KİMLİĞİ: aynı ürün farklı ölçüyle ayrı satırdır; miktar değişimi
+   * ve silme ürünle değil bununla adreslenir.
+   */
+  lineUid: string;
+  /** Girilen ölçüler (parametresiz satırda []). */
+  params: CartLineParam[];
+  /** "2850 mm" — satır adının altına; belge ve yazdırmayla aynı özet. */
+  paramSummary: string;
+  /** Taban birim miktar (2 adet × 2,85 m = 5,7) ve taban birim. */
+  baseQuantity: string;
+  unit: string;
   code: string;
   name: string;
   quantity: string;

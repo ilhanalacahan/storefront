@@ -13,6 +13,7 @@ import {
   sepetGetir,
   sepeteEkle,
 } from "@/lib/api/cart";
+import type { SepetParametreGirdisi } from "@/lib/api/cart";
 import type { Cart, CartAddressInput } from "@/lib/api/types";
 import { useAuthStore } from "@/store/auth-store";
 import { useCartStore } from "@/store/cart-store";
@@ -49,8 +50,15 @@ export function useSepeteEkle() {
   const token = useAuthStore((s) => s.token);
   const yaz = useSepetYaz();
   return useMutation({
-    mutationFn: ({ productUid, quantity = "1" }: { productUid: string; quantity?: string }) =>
-      sepeteEkle(cartUid, productUid, quantity, token || null),
+    mutationFn: ({
+      productUid,
+      quantity = "1",
+      params,
+    }: {
+      productUid: string;
+      quantity?: string;
+      params?: SepetParametreGirdisi[];
+    }) => sepeteEkle(cartUid, productUid, quantity, token || null, params),
     onSuccess: (sepet) => {
       yaz(sepet);
       toast.success("Sepete eklendi");
@@ -66,8 +74,15 @@ export function useSatirAyarla() {
   const token = useAuthStore((s) => s.token);
   const yaz = useSepetYaz();
   return useMutation({
-    mutationFn: ({ productUid, quantity }: { productUid: string; quantity: string }) =>
-      satirAyarla(cartUid, productUid, quantity, token || null),
+    mutationFn: ({
+      productUid,
+      quantity,
+      lineUid,
+    }: {
+      productUid: string;
+      quantity: string;
+      lineUid?: string;
+    }) => satirAyarla(cartUid, productUid, quantity, token || null, lineUid),
     onSuccess: yaz,
     onError: (e) => toast.error(e instanceof Error ? e.message : "Sepet güncellenemedi."),
   });

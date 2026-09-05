@@ -97,6 +97,23 @@ kesilir (G47/4 çizgisi). Vitrin yalnız "şu an ne açılabilir" bayraklarını
 tahsilat–iade eşleşmesini ve stok rezervasyonunu vitrin kapısından deftere
 taşımak olurdu.
 
+### V12 — Ölçülü ürünün bileşimi ve rozeti sunucudandır
+
+Parametreli üründe (şerit boyu, kaynak ücreti) PDP yalnız GİRDİ toplar;
+bileşik fiyat, taban miktar, kırılım ve "stokta" rozeti
+`/products/{uid}/compose` ucundan gelir — istemci çarpmaz, ölçüyü metreye
+çevirmez, sabiti brütleştirmez (G2/G5/G6). Rozet girdilerden SONRA ve taban
+miktara göre çizilir: ölçü girilmeden "stokta" denmez. Sepet satırı ürün +
+ölçü kümesiyle kimliklenir (`lineUid`); miktar değişimi ve silme satırla
+adreslenir. Nitelik kümesi → kart çözümü (`/siblings`) ve nitelik facet'i
+sunucunun verdiği eksenlerle çizilir; eksenler birbirini daraltır, istemci
+kombinasyon üretmez.
+
+*Neden:* 2 adet × 2.850 mm = 5,7 m; stok 5 m ise ürün stokta değildir. Rozet
+girdiden bağımsız yeşil yandığı sürece yalan söyler. Bileşimi istemci
+hesaplasaydı kasadaki fiş ile vitrindeki fiyat kuruş ayrılırdı ve iki
+"doğru" fiyat doğardı.
+
 ### V8 — Next.js sürüm notları
 
 - `params` ve `searchParams` **Promise**'tir, `await` edilir.

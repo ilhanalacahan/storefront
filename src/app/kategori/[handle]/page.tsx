@@ -93,10 +93,12 @@ export default async function KategoriSayfasi({ params, searchParams }: Props) {
         search: sorgu.ara,
         attributes: sorgu.nitelikler,
       }).catch(() => []),
+      // BAĞIMLI facet: seçili nitelikler gönderilir, eksenler birbirini daraltır.
       nitelikleriGetir({
         categoryUid: kategori.uid,
         search: sorgu.ara,
         brand: sorgu.marka,
+        attributes: sorgu.nitelikler,
       }).catch(() => []),
     ]);
   } catch (e) {

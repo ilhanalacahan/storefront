@@ -13,17 +13,31 @@ import { fiyat, miktar } from "@/lib/format";
 export function CartLines({ sepet }: { sepet: Cart }) {
   const ayarla = useSatirAyarla();
 
+  // Satır KİMLİĞİYLE adreslenir: aynı ürün farklı ölçüyle ayrı satırdır.
   const degistir = (line: CartLine, fark: number) => {
     const yeni = Number(line.quantity) + fark;
-    ayarla.mutate({ productUid: line.productUid, quantity: String(Math.max(0, yeni)) });
+    ayarla.mutate({
+      productUid: line.productUid,
+      lineUid: line.lineUid,
+      quantity: String(Math.max(0, yeni)),
+    });
   };
 
   return (
     <ul className="divide-y divide-line">
       {sepet.lines.map((line) => (
-        <li key={line.productUid} className="flex gap-3 py-3">
+        <li key={line.lineUid || line.productUid} className="flex gap-3 py-3">
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{line.name}</p>
+            <p className="truncate text-sm font-medium">
+              {line.name}
+              {line.paramSummary ? <span className="text-soft"> — {line.paramSummary}</span> : null}
+            </p>
+            {line.params?.length ? (
+              // Ölçülü satır: taban miktar sunucudan (2 adet × 2,85 m = 5,7 m).
+              <p className="text-xs text-soft">
+                {miktar(line.baseQuantity)} {line.unit || ""}
+              </p>
+            ) : null}
             <p className="text-xs text-soft">
               {fiyat(line.grossUnitPrice, sepet.curCode)}
               {Number(line.discountAmount) > 0 ? (
@@ -60,7 +74,9 @@ export function CartLines({ sepet }: { sepet: Cart }) {
                 type="button"
                 aria-label="Satırı sil"
                 disabled={ayarla.isPending}
-                onClick={() => ayarla.mutate({ productUid: line.productUid, quantity: "0" })}
+                onClick={() =>
+                  ayarla.mutate({ productUid: line.productUid, lineUid: line.lineUid, quantity: "0" })
+                }
                 className="flex size-7 items-center justify-center rounded-lg text-soft hover:text-danger disabled:opacity-40"
               >
                 <Trash2 className="size-3.5" />

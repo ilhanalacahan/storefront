@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import type { ProductAttribute, StorefrontProduct } from "@/lib/api/types";
 import { notFound } from "next/navigation";
 
-import { kategorileriGetir, urunGetir } from "@/lib/api/catalog";
+import { kardesleriGetir, kategorileriGetir, urunGetir } from "@/lib/api/catalog";
 import { BuyBox } from "./buy-box";
 import { Gallery } from "./gallery";
+import { NitelikSecici } from "@/components/nitelik-secici";
 import { AtaUyarisi, VaryantSecici } from "@/components/varyant-secici";
 import { UrunYapisalVerisi } from "@/components/json-ld";
 import { Kirinti, type KirintiOgesi } from "@/components/kirinti";
@@ -69,9 +70,12 @@ export default async function UrunDetay({ params }: Props) {
   // Ürün ve kategori listesi paralel: kırıntı zinciri kategori listesinden
   // (5 dk ISR, tüm sayfalarla paylaşılır) çözülür — ürün yanıtı yalnız
   // yaprak kategorisini taşır.
-  const [urun, kategoriler] = await Promise.all([
+  // Kardeş kartlar da paralel: nitelik seçicisi (genişlik/kalınlık) sunucuda
+  // çözülür ve link olarak çizilir — varyant seçicisiyle aynı ilke.
+  const [urun, kategoriler, kardesler] = await Promise.all([
     urunGetir(uid).catch(() => null),
     kategorileriGetir().catch(() => []),
+    kardesleriGetir(uid).catch(() => null),
   ]);
   if (!urun) notFound();
 
@@ -102,6 +106,11 @@ export default async function UrunDetay({ params }: Props) {
               (her varyantın kendi sayfası var). BuyBox'tan önce gelir —
               müşteri önce hangi varyanta baktığını görmeli, sonra fiyatı. */}
           <VaryantSecici urun={urun} />
+          {/* Nitelik kümesi → kart: aynı kategorideki kardeş kartlar arasında
+              ölçüyle geçiş (varyant olmayan aileler). Varyant ailesi varsa
+              eksenler zaten oradan gelir; kardeş seçici yalnız niteliklilerde
+              çıkar (sunucu boş eksen döndürür). */}
+          {urun.variants.length === 0 ? <NitelikSecici kardesler={kardesler} /> : null}
           {urun.isVariantMaster ? <AtaUyarisi urun={urun} /> : <BuyBox baslangic={urun} />}
         </div>
       </div>

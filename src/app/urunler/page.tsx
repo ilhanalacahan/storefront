@@ -74,9 +74,12 @@ export default async function Urunler({ searchParams }: { searchParams: Promise<
       // Tüm katalogda nitelik ekseni yalnız arama ya da kategori daraltmasında
       // anlamlı — bütün kataloğun karışık niteliklerini listelemek gürültü olurdu.
       sorgu.ara || kategori
-        ? nitelikleriGetir({ search: sorgu.ara, categoryUid: kategori, brand: sorgu.marka }).catch(
-            () => [],
-          )
+        ? nitelikleriGetir({
+            search: sorgu.ara,
+            categoryUid: kategori,
+            brand: sorgu.marka,
+            attributes: sorgu.nitelikler, // bağımlı facet
+          }).catch(() => [])
         : Promise.resolve([]),
     ]);
   } catch (e) {
