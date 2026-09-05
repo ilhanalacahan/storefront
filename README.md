@@ -29,7 +29,8 @@ Bu bir **şablondur**: fork'layın, temayı değiştirin, kendi mağazanıza dö
 | Slide-over sepet | Ürün eklenince yandan açılır; mobil alt navigasyon + rozet |
 | Kupon / kampanya | `cartApplyCoupon` — otomatik kampanya daha iyiyse backend reddeder ve söyler |
 | Üyelik | `storefrontRegister/Login` (kanal kapsamlı hesap, KVKK onayı zorunlu) |
-| Sipariş geçmişi + detay | `storefrontOrders` listesi; satır tıklanınca `storefrontOrder` ile kalemler (ad snapshot'ı, miktar, KDV dahil fiyatlar) |
+| Sipariş geçmişi + detay | `/account/orders` listesi; satır açılınca kalemler, teslimat damgaları (kargo firması, takip no), yazdırılabilir sayfa (`/hesap/siparis/[uid]` → tarayıcı "PDF olarak kaydet") |
+| Sipariş self-servisi | İptal (sevk başlamadan) / iade (teslimden sonra) **talebi** — mağaza TicariApp → Evrak → Sipariş Talepleri'nde karar verir, not müşteriye görünür; hesapsız **Sipariş Sorgula** (`/siparis-sorgula`: belge no + e-posta) |
 | Sepet birleştirme | Girişte misafir sepeti hesaba taşınır (`cartMerge`) |
 | Ödeme + sipariş | `cartSetAddress` → `paymentSessionStart` → `paymentSessionAuthorize` — sipariş **tahsilat anında** doğar, stok rezerve edilir |
 | Test ödemesi | "test" sağlayıcısı: başarılı / kart reddi / banka hatası senaryoları seçilebilir |

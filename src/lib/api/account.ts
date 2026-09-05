@@ -70,7 +70,25 @@ export interface StorefrontOrderLine {
   lineTotal: string;
 }
 
+/** İptal/iade talebi — müşteri açar, mağaza karar verir; belge değişmez. */
+export interface StorefrontOrderRequest {
+  uid: string;
+  /** 1 iptal · 2 iade */
+  kind: number;
+  /** 0 açık · 1 kabul · 2 ret */
+  status: number;
+  reason: string;
+  /** Mağazanın notu ('' = yok). */
+  decisionNote: string;
+  createdAt: string;
+  decidedAt: string;
+}
+
 export interface StorefrontOrderDetail extends StorefrontOrder {
+  /** Talepler (en yeni önce) ve "şu an hangisi açılabilir" bayrakları — kural sunucuda. */
+  requests: StorefrontOrderRequest[];
+  canCancel: boolean;
+  canReturn: boolean;
   /** Teslimat DAMGALARI — sipariş anındaki karar; tarife sonradan değişse de sabit. */
   shippingFee: string;
   /** Kargo firması / teslimat yönteminin adı ('' = teslimat yöntemi seçilmemiş). */
@@ -97,6 +115,31 @@ export async function siparisDetay(
     // Başkasının siparişi de "bulunamadı"dır — varlık sızdırılmaz.
     return null;
   }
+}
+
+/**
+ * İptal (1) ya da iade (2) talebi açar; güncel sipariş detayını döner.
+ * Kural sunucuda (canCancel/canReturn); talep belgeyi değiştirmez, mağaza
+ * karar verir ve gereken belgeyi kendi keser.
+ */
+export async function talepAc(
+  token: string,
+  orderUid: string,
+  kind: 1 | 2,
+  reason: string,
+): Promise<StorefrontOrderDetail> {
+  return apiIstemci<StorefrontOrderDetail>(
+    `/account/orders/${encodeURIComponent(orderUid)}/requests`,
+    { metot: "POST", govde: { kind, reason }, token },
+  );
+}
+
+/** Hesapsız sorgulama: belge no + siparişteki e-posta. Yanlış çift "bulunamadı"dır. */
+export async function siparisSorgula(docNum: string, email: string): Promise<StorefrontOrderDetail> {
+  return apiIstemci<StorefrontOrderDetail>("/orders/lookup", {
+    metot: "POST",
+    govde: { docNum, email },
+  });
 }
 
 export async function adreslerim(token: string): Promise<StorefrontAddress[]> {

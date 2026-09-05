@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BadgeCheck, ChevronDown, Heart, Loader2, LogOut, MapPin, Package, User } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -13,7 +13,10 @@ import {
   kayitOl,
   siparisDetay,
   siparislerim,
+  talepAc,
+  type StorefrontOrderDetail,
 } from "@/lib/api/account";
+import { TalepListesi } from "@/components/siparis-detay";
 import { sepetBirlestir } from "@/lib/api/cart";
 import type { StorefrontAuthPayload } from "@/lib/api/types";
 import { fiyat, miktar, ODEME_DURUM, SIPARIS_DURUM, tarih } from "@/lib/format";
@@ -362,11 +365,98 @@ function SiparisSatiri({
                   ) : null}
                 </dl>
               ) : null}
+
+              <TalepAlani detay={detayQ.data} siparisUid={siparis.uid} />
+              <div className="mt-3 border-t border-line pt-2 text-right">
+                <Link
+                  href={`/hesap/siparis/${siparis.uid}`}
+                  className="text-xs font-medium text-accent hover:underline"
+                >
+                  Yazdır / PDF
+                </Link>
+              </div>
             </>
           )}
         </div>
       ) : null}
     </li>
+  );
+}
+
+/**
+ * İptal / iade talebi — düğmeler sunucunun canCancel/canReturn bayrağına
+ * bağlıdır; gerekçe zorunlu. Dönen detay cache'e yazılır (yeniden çekilmez).
+ * Talep belgeyi değiştirmez: mağaza karar verir, not müşteriye görünür.
+ */
+function TalepAlani({ detay, siparisUid }: { detay: StorefrontOrderDetail; siparisUid: string }) {
+  const token = useAuthStore((s) => s.token);
+  const qc = useQueryClient();
+  const [acik, setAcik] = useState<1 | 2 | null>(null);
+  const [gerekce, setGerekce] = useState("");
+  const talep = useMutation({
+    mutationFn: ({ kind, reason }: { kind: 1 | 2; reason: string }) => talepAc(token, siparisUid, kind, reason),
+    onSuccess: (yeni) => {
+      qc.setQueryData(["siparis-detay", siparisUid], yeni);
+      toast.success("Talebiniz alındı; mağaza inceleyip size döner.");
+      setAcik(null);
+      setGerekce("");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Talep açılamadı."),
+  });
+
+  return (
+    <div className="mt-3 space-y-2 border-t border-line pt-3">
+      {detay.requests.length ? <TalepListesi talepler={detay.requests} /> : null}
+      {detay.canCancel || detay.canReturn ? (
+        acik === null ? (
+          <div className="flex flex-wrap gap-2">
+            {detay.canCancel ? (
+              <button type="button" onClick={() => setAcik(1)} className="rounded-xl border border-line px-3 py-1.5 text-xs font-medium hover:border-danger hover:text-danger">
+                İptal talebi aç
+              </button>
+            ) : null}
+            {detay.canReturn ? (
+              <button type="button" onClick={() => setAcik(2)} className="rounded-xl border border-line px-3 py-1.5 text-xs font-medium hover:border-accent hover:text-accent">
+                İade talebi aç
+              </button>
+            ) : null}
+          </div>
+        ) : (
+          <form
+            className="space-y-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              talep.mutate({ kind: acik, reason: gerekce });
+            }}
+          >
+            <p className="text-xs font-medium">{acik === 1 ? "İptal talebi" : "İade talebi"} — gerekçenizi yazın</p>
+            <textarea
+              value={gerekce}
+              rows={3}
+              maxLength={2000}
+              required
+              disabled={talep.isPending}
+              placeholder={acik === 1 ? "Örn. yanlış adres girdim" : "Örn. ürün hasarlı geldi"}
+              onChange={(e) => setGerekce(e.target.value)}
+              className="w-full rounded-xl border border-line bg-surface px-3 py-2 text-xs"
+            />
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={talep.isPending || gerekce.trim().length < 3}
+                className="flex items-center gap-1.5 rounded-xl bg-accent px-3 py-1.5 text-xs font-semibold text-accent-foreground disabled:opacity-40"
+              >
+                {talep.isPending ? <Loader2 className="size-3.5 animate-spin" /> : null}
+                Gönder
+              </button>
+              <button type="button" disabled={talep.isPending} onClick={() => setAcik(null)} className="rounded-xl border border-line px-3 py-1.5 text-xs">
+                Vazgeç
+              </button>
+            </div>
+          </form>
+        )
+      ) : null}
+    </div>
   );
 }
 

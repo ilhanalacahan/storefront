@@ -74,6 +74,29 @@ kurucu yazılmaz. `productCount` ve kategori süzgeci **alt ağacı kapsar**:
 kategori sayfası, yalnız yaprağa ürün bağlayan bir katalogda üst kategorileri
 boş gösterirdi.
 
+### V10 — İçerik Markdown'dır ve React düğümü olarak çizilir
+
+CMS sayfası, ürün ve kategori açıklaması **Markdown alt kümesidir** ve
+`lib/markdown.tsx` ile React düğümlerine çevrilir. `dangerouslySetInnerHTML`
+yalnız JSON-LD için kullanılır; içerik HİÇBİR yerde HTML olarak işlenmez.
+Bağlantı hedefi yalnız `http(s)`, `mailto`, göreli ve çapa olabilir. Yorum,
+talep gerekçesi ve mağaza yanıtı düz metindir.
+
+*Neden:* yönetici hesabı da bir saldırı yüzeyidir; ham HTML işlenseydi tek bir
+yapıştırma vitrindeki her ziyaretçide script çalıştırırdı. Alt küme, harici
+sanitize bağımlılığı olmadan bunu yapısal olarak imkânsız kılar.
+
+### V11 — Talep belge değildir
+
+Vitrinden açılan iptal/iade talebi bir KAYITTIR: siparişi iptal etmez, iade
+kesmez, stok ve deftere dokunmaz. Mağaza karar verir; belge kendi ekranından
+kesilir (G47/4 çizgisi). Vitrin yalnız "şu an ne açılabilir" bayraklarını
+(`canCancel` / `canReturn`) sunucudan okur; kuralı yeniden beyan etmez.
+
+*Neden:* para alınmış bir siparişi müşterinin tek tıkla iptal etmesi
+tahsilat–iade eşleşmesini ve stok rezervasyonunu vitrin kapısından deftere
+taşımak olurdu.
+
 ### V8 — Next.js sürüm notları
 
 - `params` ve `searchParams` **Promise**'tir, `await` edilir.

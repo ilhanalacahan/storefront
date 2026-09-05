@@ -36,6 +36,7 @@ export function Footer({ sayfalar }: { sayfalar: StorefrontPage[] }) {
               <li><Link href="/favoriler" className="hover:text-foreground">Favorilerim</Link></li>
               <li><Link href="/sepet" className="hover:text-foreground">Sepetim</Link></li>
               <li><Link href="/hesap" className="hover:text-foreground">Hesabım</Link></li>
+              <li><Link href="/siparis-sorgula" className="hover:text-foreground">Sipariş Sorgula</Link></li>
             </ul>
           </div>
           {sayfalar.length ? (
