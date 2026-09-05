@@ -19,10 +19,12 @@ import {
 import { Kirinti, type KirintiOgesi } from "@/components/kirinti";
 import {
   kategoriGetir,
+  makineleriGetir,
   markalariGetir,
   nitelikleriGetir,
   urunSayfasiGetir,
 } from "@/lib/api/catalog";
+import { MakineSecici } from "@/components/makine-secici";
 import { kategoriYolu } from "@/lib/kategori";
 import { Markdown } from "@/lib/markdown";
 
@@ -75,9 +77,10 @@ export default async function KategoriSayfasi({ params, searchParams }: Props) {
   let sonuc: Awaited<ReturnType<typeof urunSayfasiGetir>> = { urunler: [], toplam: 0 };
   let markalar: Awaited<ReturnType<typeof markalariGetir>> = [];
   let nitelikler: Awaited<ReturnType<typeof nitelikleriGetir>> = [];
+  let makineler: Awaited<ReturnType<typeof makineleriGetir>> = [];
   let hata = "";
   try {
-    [sonuc, markalar, nitelikler] = await Promise.all([
+    [sonuc, markalar, nitelikler, makineler] = await Promise.all([
       urunSayfasiGetir({
         categoryUid: kategori.uid,
         search: sorgu.ara,
@@ -100,6 +103,8 @@ export default async function KategoriSayfasi({ params, searchParams }: Props) {
         brand: sorgu.marka,
         attributes: sorgu.nitelikler,
       }).catch(() => []),
+      // "Makine seç → ürün bul": kategorinin alt ağacındaki makine tablosu.
+      makineleriGetir(kategori.uid),
     ]);
   } catch (e) {
     hata = e instanceof Error ? e.message : "Ürünler yüklenemedi.";
@@ -166,6 +171,9 @@ export default async function KategoriSayfasi({ params, searchParams }: Props) {
         </div>
       ) : null}
 
+      {/* Makine seçimi kategori süzgecine çevrilir (n.<anahtar>=<değer>); eşleşen
+          kartları bağımlı facet ve liste bulur — makine ürüne bağlı değildir. */}
+      <MakineSecici makineler={makineler} kategoriYolu={yol} secili={sorgu.nitelikler} />
       <KatalogSuzgecCubugu sorgu={sorgu} markalar={markalar} linkYap={linkYap} />
       <NitelikSuzgeci facetler={nitelikler} sorgu={sorgu} linkYap={linkYap} />
 
