@@ -4,9 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import { BadgeCheck, Clock, Loader2, RotateCcw, ShieldQuestion, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
-import { odemeOturumu } from "@/lib/api/payment";
+import { odemeIptal, odemeOnayla, odemeOturumu } from "@/lib/api/payment";
 import type { PaymentSession } from "@/lib/api/types";
 import { fiyat } from "@/lib/format";
 import { odemeIziniSil, sonOturumUid } from "@/lib/odeme-izi";
@@ -15,6 +15,9 @@ import { useCartStore } from "@/store/cart-store";
 
 /** Sonuç henüz kesinleşmemiş durumlar — yoklamaya devam edilir. */
 const BEKLEYEN = new Set([0, 1]); // created · pending
+
+/** Test sağlayıcısının sonucu sağlayıcıdan sorgulanmaz; onun akışı ödeme sayfasındaki paneldedir. */
+const TEST_SAGLAYICI = "test";
 
 /**
  * Yoklama üst sınırı. Webhook gecikirse sonsuza kadar dönmemek için: 3 sn'de
@@ -45,6 +48,23 @@ export function OdemeDonusu() {
       return q.state.dataUpdateCount >= AZAMI_DENEME ? false : 3_000;
     },
   });
+
+  // GERÇEK SAĞLAYICIDAN DÖNÜŞ: sonucu sağlayıcıdan SORGULAT. Stripe/iyzico/PayTR
+  // müşteriyi buraya geri yollar ama sonucu kendiliğinden bize yazmaz; webhook
+  // gecikebilir ya da hiç kurulmamış olabilir. Oturum hâlâ bekliyorsa sunucuya
+  // "yetkilendir" denir — sunucu sağlayıcıya sorar (tarayıcıdan gelen hiçbir
+  // parametreye güvenmez) ve ödenmişse siparişi o anda doğurur. Sağlayıcının
+  // iptal dönüşü (?iptal=1) ise oturumu kapatır ki müşteri tekrar deneyebilsin.
+  // Tek sefer denenir: hata alınırsa yoklama zaten devam eder.
+  const sorgulandi = useRef(false);
+  const iptalDonusu = params.get("iptal") === "1";
+  useEffect(() => {
+    if (!data || sorgulandi.current) return;
+    if (!BEKLEYEN.has(data.status) || data.providerCode === TEST_SAGLAYICI) return;
+    sorgulandi.current = true;
+    const islem = iptalDonusu ? odemeIptal(data.uid, token || null) : odemeOnayla(data.uid, "", token || null);
+    islem.then(() => refetch()).catch(() => refetch());
+  }, [data, iptalDonusu, token, refetch]);
 
   // Sipariş doğduysa sepet kapanmıştır: yerel sepet kimliğini ve ödeme izini
   // temizle. Bayat clientUid bir sonraki alışverişte "bu ödeme isteği zaten
