@@ -1,15 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 import { KirintiYapisalVerisi } from "@/components/json-ld";
+import { KatalogDuzeni } from "@/components/katalog-duzeni";
 import {
+  AktifSuzgecler,
+  FacetPaneli,
   KatalogBos,
   KatalogHata,
-  KatalogSuzgecCubugu,
-  NitelikSuzgeci,
   SAYFA_BOYU,
   Sayfalama,
+  SiralamaSecici,
   UrunIzgarasi,
   katalogLinkKurucu,
   katalogSorgusuCoz,
@@ -87,6 +90,8 @@ export default async function KategoriSayfasi({ params, searchParams }: Props) {
         brand: sorgu.marka,
         sort: sorgu.sirala,
         inStock: sorgu.stokta,
+        minPrice: sorgu.enAz,
+        maxPrice: sorgu.enCok,
         attributes: sorgu.nitelikler,
         limit: SAYFA_BOYU,
         offset: (sorgu.sayfa - 1) * SAYFA_BOYU,
@@ -94,6 +99,8 @@ export default async function KategoriSayfasi({ params, searchParams }: Props) {
       markalariGetir({
         categoryUid: kategori.uid,
         search: sorgu.ara,
+        minPrice: sorgu.enAz,
+        maxPrice: sorgu.enCok,
         attributes: sorgu.nitelikler,
       }).catch(() => []),
       // BAĞIMLI facet: seçili nitelikler gönderilir, eksenler birbirini daraltır.
@@ -101,6 +108,8 @@ export default async function KategoriSayfasi({ params, searchParams }: Props) {
         categoryUid: kategori.uid,
         search: sorgu.ara,
         brand: sorgu.marka,
+        minPrice: sorgu.enAz,
+        maxPrice: sorgu.enCok,
         attributes: sorgu.nitelikler,
       }).catch(() => []),
       // "Makine seç → ürün bul": kategorinin alt ağacındaki makine tablosu.
@@ -136,11 +145,7 @@ export default async function KategoriSayfasi({ params, searchParams }: Props) {
             )}{" "}
             <span className="text-base font-normal text-soft">({sonuc.toplam})</span>
           </h1>
-          {sonSayfa > 1 ? (
-            <p className="text-sm text-soft">
-              Sayfa {sorgu.sayfa} / {sonSayfa}
-            </p>
-          ) : null}
+          <SiralamaSecici sorgu={sorgu} linkYap={linkYap} />
         </div>
         {kategori.description ? (
           <Markdown metin={kategori.description} className="max-w-2xl" />
@@ -174,23 +179,43 @@ export default async function KategoriSayfasi({ params, searchParams }: Props) {
       {/* Makine seçimi kategori süzgecine çevrilir (n.<anahtar>=<değer>); eşleşen
           kartları bağımlı facet ve liste bulur — makine ürüne bağlı değildir. */}
       <MakineSecici makineler={makineler} kategoriYolu={yol} secili={sorgu.nitelikler} />
-      <KatalogSuzgecCubugu sorgu={sorgu} markalar={markalar} linkYap={linkYap} />
-      <NitelikSuzgeci facetler={nitelikler} sorgu={sorgu} linkYap={linkYap} />
 
-      {hata ? (
-        <KatalogHata mesaj={hata} />
-      ) : sonuc.urunler.length === 0 ? (
-        <KatalogBos
-          baslik={suzgecVar ? "Sonuç bulunamadı" : "Bu kategoride yayında ürün yok"}
-          suzgecVar={suzgecVar}
-          temizleHref={suzgecVar ? yol : "/urunler"}
-        />
-      ) : (
-        <>
-          <UrunIzgarasi urunler={sonuc.urunler} />
-          <Sayfalama sayfa={sorgu.sayfa} sonSayfa={sonSayfa} linkYap={linkYap} />
-        </>
-      )}
+      <Suspense>
+        <KatalogDuzeni
+          panel={
+            <FacetPaneli
+              sorgu={sorgu}
+              markalar={markalar}
+              facetler={nitelikler}
+              linkYap={linkYap}
+              kategoriler={kategori.children}
+              kategoriBasligi="Alt Kategoriler"
+            />
+          }
+        >
+          <AktifSuzgecler
+            sorgu={sorgu}
+            linkYap={linkYap}
+            temizleHref={yol}
+            facetler={nitelikler}
+          />
+
+          {hata ? (
+            <KatalogHata mesaj={hata} />
+          ) : sonuc.urunler.length === 0 ? (
+            <KatalogBos
+              baslik={suzgecVar ? "Sonuç bulunamadı" : "Bu kategoride yayında ürün yok"}
+              suzgecVar={suzgecVar}
+              temizleHref={suzgecVar ? yol : "/urunler"}
+            />
+          ) : (
+            <>
+              <UrunIzgarasi urunler={sonuc.urunler} />
+              <Sayfalama sayfa={sorgu.sayfa} sonSayfa={sonSayfa} linkYap={linkYap} />
+            </>
+          )}
+        </KatalogDuzeni>
+      </Suspense>
     </div>
   );
 }

@@ -114,6 +114,37 @@ girdiden bağımsız yeşil yandığı sürece yalan söyler. Bileşimi istemci
 hesaplasaydı kasadaki fiş ile vitrindeki fiyat kuruş ayrılırdı ve iki
 "doğru" fiyat doğardı.
 
+### V12 — Müşteri içeriği onayla yayınlanır
+
+Yorum ve soru vitrinde **bekliyor** durumunda doğar; mağaza onaylayana kadar
+yazanından başkasına görünmez. Yazarın adı **maskeli** çıkar ("Ahmet Y."),
+e-postası hiç çıkmaz.
+
+Yorum ve soru **AYRI VARLIKLARDIR**: yorum bir değerlendirmedir (puanı vardır,
+ürün ortalamasına girer, bir hesap bir ürüne tek yorum yazar); soru bir
+taleptir (puanı yoktur, satın almadan da sorulur, aynı hesap birden çok
+sorabilir). Tek tabloda birleştirmek, puanı olmayan kayıtlarla ürün
+ortalamasını bozardı.
+
+*Neden:* moderasyonsuz bir içerik alanının sonu bellidir (spam, rakip yorumu,
+kişisel veri sızıntısı). Onay kapısı bunu yapısal olarak keser; maskeleme ise
+KVKK'nın veri minimizasyonudur (G19'un aynı gerekçesi).
+
+### V13 — Alarm tek atışlıktır, referansı sunucuda damgalıdır
+
+"Stoğa gelince haber ver" ve "fiyat düşünce haber ver" alarmları bir kez
+tetiklenir ve tüketilir; müşteri isterse yeniden kurar.
+
+Fiyat alarmının referansı **kurulum anında sunucuda damgalanır** (G3) ve
+istemciden ALINMAZ: eşiği istemcinin göndermesi, müşteriye kendi alarmını
+fiyat düşmeden tetikletme imkânı verirdi. Referans HAM ölçekte tutulur
+(karşılaştırmayı yapan işçi de aynı önbellekten okur) ve bu yüzden müşteriye
+**gösterilmez** — vitrin yalnız "alarm kurulu" der.
+
+*Neden:* sürekli alarm, stoğu gün içinde birkaç kez biten bir üründe müşteriye
+onlarca e-posta yollardı. İki ayrı ölçekteki fiyatı kıyaslamak ise hiç
+düşmemiş bir fiyatı düşmüş göstermekti.
+
 ### V8 — Next.js sürüm notları
 
 - `params` ve `searchParams` **Promise**'tir, `await` edilir.

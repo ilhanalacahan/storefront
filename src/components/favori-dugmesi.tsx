@@ -52,7 +52,7 @@ export function FavoriDugmesi({
         e.preventDefault();
         degistir(productUid, !favori);
       }}
-      className={`absolute left-2 top-2 z-10 flex size-8 items-center justify-center rounded-full bg-surface/90 shadow-sm backdrop-blur transition hover:scale-110 ${
+      className={`absolute right-2 top-2 z-10 flex size-8 items-center justify-center rounded-full bg-surface/90 shadow-sm backdrop-blur transition hover:scale-110 ${
         favori ? "text-danger" : "text-soft"
       }`}
     >

@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Suspense } from "react";
 
+import { KatalogDuzeni } from "@/components/katalog-duzeni";
 import {
+  AktifSuzgecler,
+  FacetPaneli,
   KatalogBos,
   KatalogHata,
-  KatalogSuzgecCubugu,
-  NitelikSuzgeci,
   SAYFA_BOYU,
   Sayfalama,
+  SiralamaSecici,
   UrunIzgarasi,
   katalogLinkKurucu,
   katalogSorgusuCoz,
@@ -20,17 +22,16 @@ import {
   nitelikleriGetir,
   urunSayfasiGetir,
 } from "@/lib/api/catalog";
-import { kategoriYolu } from "@/lib/kategori";
 
 /**
  * Ürün listesi (PLP) — tüm katalog + arama. SÜZGEÇ DURUMU URL'DEDİR
- * (?ara=…&marka=…&sirala=…&stokta=1&sayfa=…); arama kutusu (header'da)
- * 300 ms debounce ile bu adresi günceller.
+ * (?ara=…&marka=…&sirala=…&stokta=1&enaz=…&encok=…&sayfa=…); arama kutusu
+ * (header'da) 250 ms debounce ile bu adresi günceller.
  *
- * KATEGORİ ÇİPLERİ KATEGORİ SAYFASINA GİDER (/kategori/[handle]): kategori
- * bir süzgeç değil, kendi kırıntısı ve alt kategorileri olan bir sayfadır.
- * Eski `?kategori=<uid>` adresi çalışmaya devam eder (paylaşılmış link
- * kırılmasın) ama yeni link üretilmez.
+ * KATEGORİ SÜZGECİ DEĞİL, KATEGORİ SAYFASI: paneldeki kategori satırları
+ * /kategori/[handle] sayfasına gider — kategori kendi kırıntısı, açıklaması ve
+ * alt kırılımı olan bir sayfadır. Eski `?kategori=<uid>` adresi çalışmaya
+ * devam eder (paylaşılmış link kırılmasın) ama yeni link üretilmez.
  *
  * SAYFALAMA GERÇEK SAYIYA DAYANIR: backend toplam kayıt sayısını döndürür.
  * SIRALAMA VE FİYAT SÜZGECİ SUNUCUDA çözülür (fiyat önbelleğinden) — istemcide
@@ -63,14 +64,20 @@ export default async function Urunler({ searchParams }: { searchParams: Promise<
         brand: sorgu.marka,
         sort: sorgu.sirala,
         inStock: sorgu.stokta,
+        minPrice: sorgu.enAz,
+        maxPrice: sorgu.enCok,
         attributes: sorgu.nitelikler,
         limit: SAYFA_BOYU,
         offset: (sorgu.sayfa - 1) * SAYFA_BOYU,
       }),
       kategorileriGetir().catch(() => []),
-      markalariGetir({ search: sorgu.ara, categoryUid: kategori, attributes: sorgu.nitelikler }).catch(
-        () => [],
-      ),
+      markalariGetir({
+        search: sorgu.ara,
+        categoryUid: kategori,
+        minPrice: sorgu.enAz,
+        maxPrice: sorgu.enCok,
+        attributes: sorgu.nitelikler,
+      }).catch(() => []),
       // Tüm katalogda nitelik ekseni yalnız arama ya da kategori daraltmasında
       // anlamlı — bütün kataloğun karışık niteliklerini listelemek gürültü olurdu.
       sorgu.ara || kategori
@@ -78,6 +85,8 @@ export default async function Urunler({ searchParams }: { searchParams: Promise<
             search: sorgu.ara,
             categoryUid: kategori,
             brand: sorgu.marka,
+            minPrice: sorgu.enAz,
+            maxPrice: sorgu.enCok,
             attributes: sorgu.nitelikler, // bağımlı facet
           }).catch(() => [])
         : Promise.resolve([]),
@@ -88,13 +97,15 @@ export default async function Urunler({ searchParams }: { searchParams: Promise<
 
   const sonSayfa = Math.max(1, Math.ceil(sonuc.toplam / SAYFA_BOYU));
   const seciliKategori = kategoriler.find((k) => k.uid === kategori);
-  const kokler = kategoriler.filter((k) => !k.parentUid || !kategoriler.some((p) => p.uid === k.parentUid));
+  const kokler = kategoriler.filter(
+    (k) => !k.parentUid || !kategoriler.some((p) => p.uid === k.parentUid),
+  );
   const linkYap = katalogLinkKurucu("/urunler", sorgu, kategori ? { kategori } : {});
   const suzgecVar = suzgecVarMi(sorgu) || Boolean(kategori);
 
   return (
     <div className="space-y-5 py-6">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">
           {sorgu.ara ? (
             <>&ldquo;{sorgu.ara}&rdquo; için sonuçlar</>
@@ -105,56 +116,44 @@ export default async function Urunler({ searchParams }: { searchParams: Promise<
           )}{" "}
           <span className="text-base font-normal text-soft">({sonuc.toplam})</span>
         </h1>
-        {sonSayfa > 1 ? (
-          <p className="text-sm text-soft">
-            Sayfa {sorgu.sayfa} / {sonSayfa}
-          </p>
-        ) : null}
+        <SiralamaSecici sorgu={sorgu} linkYap={linkYap} />
       </div>
 
-      {/* Kök kategoriler — her çip kendi sayfasına gider. */}
-      {kokler.length > 0 ? (
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {kokler.map((k) => (
-            <Link
-              key={k.uid}
-              href={kategoriYolu(k)}
-              title={k.fullName}
-              className={`shrink-0 rounded-full border px-3.5 py-1.5 text-sm font-medium transition ${
-                k.uid === kategori
-                  ? "border-accent bg-accent text-accent-foreground"
-                  : "border-line bg-surface hover:border-soft"
-              }`}
-            >
-              {k.name} <span className="opacity-60">({k.productCount})</span>
-            </Link>
-          ))}
-          <Link
-            href="/kategoriler"
-            className="shrink-0 rounded-full border border-line bg-surface px-3.5 py-1.5 text-sm font-medium text-accent transition hover:border-accent"
-          >
-            Tüm kategoriler
-          </Link>
-        </div>
-      ) : null}
+      <Suspense>
+        <KatalogDuzeni
+          panel={
+            <FacetPaneli
+              sorgu={sorgu}
+              markalar={markalar}
+              facetler={nitelikler}
+              linkYap={linkYap}
+              kategoriler={kokler}
+            />
+          }
+        >
+          <AktifSuzgecler
+            sorgu={sorgu}
+            linkYap={linkYap}
+            temizleHref="/urunler"
+            facetler={nitelikler}
+          />
 
-      <KatalogSuzgecCubugu sorgu={sorgu} markalar={markalar} linkYap={linkYap} />
-      <NitelikSuzgeci facetler={nitelikler} sorgu={sorgu} linkYap={linkYap} />
-
-      {hata ? (
-        <KatalogHata mesaj={hata} />
-      ) : sonuc.urunler.length === 0 ? (
-        <KatalogBos
-          baslik={suzgecVar ? "Sonuç bulunamadı" : "Bu kanalda henüz yayında ürün yok"}
-          suzgecVar={suzgecVar}
-          temizleHref="/urunler"
-        />
-      ) : (
-        <>
-          <UrunIzgarasi urunler={sonuc.urunler} />
-          <Sayfalama sayfa={sorgu.sayfa} sonSayfa={sonSayfa} linkYap={linkYap} />
-        </>
-      )}
+          {hata ? (
+            <KatalogHata mesaj={hata} />
+          ) : sonuc.urunler.length === 0 ? (
+            <KatalogBos
+              baslik={suzgecVar ? "Sonuç bulunamadı" : "Bu kanalda henüz yayında ürün yok"}
+              suzgecVar={suzgecVar}
+              temizleHref="/urunler"
+            />
+          ) : (
+            <>
+              <UrunIzgarasi urunler={sonuc.urunler} />
+              <Sayfalama sayfa={sorgu.sayfa} sonSayfa={sonSayfa} linkYap={linkYap} />
+            </>
+          )}
+        </KatalogDuzeni>
+      </Suspense>
     </div>
   );
 }

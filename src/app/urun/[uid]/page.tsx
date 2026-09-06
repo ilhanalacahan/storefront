@@ -2,10 +2,21 @@ import type { Metadata } from "next";
 import type { ProductAttribute, StorefrontProduct } from "@/lib/api/types";
 import { notFound } from "next/navigation";
 
-import { kardesleriGetir, kategorileriGetir, urunGetir } from "@/lib/api/catalog";
+import { kardesleriGetir, kategorileriGetir, urunGetir, urunleriGetir } from "@/lib/api/catalog";
+import { kargoTarifesiGetir } from "@/lib/api/cart";
+import { taksitleriGetir } from "@/lib/api/taksit";
 import { BuyBox } from "./buy-box";
 import { Gallery } from "./gallery";
 import { NitelikSecici } from "@/components/nitelik-secici";
+import { Paylas } from "@/components/paylas";
+import { ProductCard } from "@/components/product-card";
+import { Serit } from "@/components/serit";
+import { SonGezilenler } from "@/components/son-gezilenler";
+import { TaksitTablosu } from "@/components/taksit-tablosu";
+import { TeslimatKutusu } from "@/components/teslimat-kutusu";
+import { UrunIzi } from "@/components/urun-izi";
+import { UrunSekmeleri, type UrunSekmesi } from "@/components/urun-sekmeleri";
+import { UrunSorulari } from "@/components/urun-sorulari";
 import { AtaUyarisi, VaryantSecici } from "@/components/varyant-secici";
 import { UrunYapisalVerisi } from "@/components/json-ld";
 import { Kirinti, type KirintiOgesi } from "@/components/kirinti";
@@ -23,6 +34,14 @@ import { SITE_ADI, mutlak, urunYolu } from "@/lib/site";
  *    sorgulanmaz.
  *  - FİYAT + STOK: BuyBox (client) sayfa açılınca aynı ürünü canlı çeker ve
  *    tazeler — önbellekteki iskelet bayatlasa bile müşteri güncel fiyatı görür.
+ *
+ * YERLEŞİM: solda galeri, sağda YAPIŞKAN satın alma kutusu. Uzun teknik
+ * özellik listelerinde müşteri sayfayı kaydırdıkça fiyat ve "sepete ekle"
+ * ekrandan çıkmaz — ticari vitrinlerin dönüşüm açısından en belirgin farkı
+ * budur.
+ *
+ * ALT BÖLÜM SEKMELİDİR: açıklama, teknik özellikler, teslimat/iade ve yorumlar
+ * alt alta uzayan dört blok yerine tek yükseklikte durur.
  */
 
 interface Props {
@@ -72,10 +91,11 @@ export default async function UrunDetay({ params }: Props) {
   // yaprak kategorisini taşır.
   // Kardeş kartlar da paralel: nitelik seçicisi (genişlik/kalınlık) sunucuda
   // çözülür ve link olarak çizilir — varyant seçicisiyle aynı ilke.
-  const [urun, kategoriler, kardesler] = await Promise.all([
+  const [urun, kategoriler, kardesler, kargoYontemleri] = await Promise.all([
     urunGetir(uid).catch(() => null),
     kategorileriGetir().catch(() => []),
     kardesleriGetir(uid).catch(() => null),
+    kargoTarifesiGetir(),
   ]);
   if (!urun) notFound();
 
@@ -88,20 +108,86 @@ export default async function UrunDetay({ params }: Props) {
     href: kategoriYolu(k),
   }));
 
+  // Benzer ürünler: aynı yaprak kategoriden, bu ürün hariç. Kategorisi yoksa
+  // hiç sorulmaz — "benzer" diye kataloğun rastgele bir köşesini göstermek
+  // müşteriye yardım etmez.
+  const benzerler = yaprak
+    ? (await urunleriGetir({ categoryUid: yaprak.uid, limit: 12 }).catch(() => []))
+        .filter((u) => u.uid !== urun.uid)
+        .slice(0, 10)
+    : [];
+
+  // Taksit tablosu ÜRÜNÜN ETİKET FİYATINA göre çözülür ve sunucudan hazır
+  // gelir (G5). Kanalda tarife yoksa boş döner ve sekme hiç açılmaz.
+  const taksitler = await taksitleriGetir(urun.price);
+
   const gorseller = urun.gallery.length
     ? urun.gallery
     : urun.imageUrl
       ? [{ url: urun.imageUrl, alt: urun.name }]
       : [];
 
+  const sekmeler: UrunSekmesi[] = [];
+  if (urun.description) {
+    sekmeler.push({
+      anahtar: "aciklama",
+      etiket: "Ürün Açıklaması",
+      // Açıklama Markdown olarak çizilir (başlık, liste, kalın, bağlantı);
+      // düz metin de olduğu gibi paragraf olur. Ham HTML işlenmez (V10).
+      icerik: <Markdown metin={urun.description} />,
+    });
+  }
+  if (urun.attributes.length || urunBilgiSatirlari(urun).length) {
+    sekmeler.push({
+      anahtar: "ozellikler",
+      etiket: "Teknik Özellikler",
+      icerik: (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <TeknikOzellikler nitelikler={urun.attributes} />
+          <UrunBilgileri urun={urun} />
+        </div>
+      ),
+    });
+  }
+  if (taksitler.length) {
+    sekmeler.push({
+      anahtar: "taksit",
+      etiket: "Taksit Seçenekleri",
+      icerik: <TaksitTablosu bankalar={taksitler} curCode={urun.curCode} baslik="" />,
+    });
+  }
+  sekmeler.push({
+    anahtar: "teslimat",
+    etiket: "Teslimat ve İade",
+    icerik: <TeslimatKutusu yontemler={kargoYontemleri} />,
+  });
+  sekmeler.push({
+    anahtar: "yorumlar",
+    etiket: "Değerlendirmeler",
+    rozet: urun.ratingCount,
+    // Yorumlar istemcide çekilir: liste kişiye özel (kendi yorumu) ve
+    // onay anında tazelenmeli — ISR'lı iskelete girmez.
+    icerik: <UrunYorumlari productUid={urun.uid} />,
+  });
+  sekmeler.push({
+    anahtar: "sorular",
+    etiket: "Soru-Cevap",
+    // Sorular da istemcide: müşteri kendi onay bekleyen sorusunu görmeli.
+    icerik: <UrunSorulari productUid={urun.uid} />,
+  });
+
   return (
-    <div className="space-y-6 py-6">
+    <div className="space-y-8 py-5">
       <UrunYapisalVerisi urun={urun} kirinti={kirinti} />
+      <UrunIzi uid={urun.uid} />
       <Kirinti ogeler={[...kirinti, { ad: urun.name }]} />
 
-      <div className="grid gap-8 lg:grid-cols-2">
-        <Gallery gorseller={gorseller} />
-        <div className="space-y-6">
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_26rem]">
+        <div className="lg:sticky lg:top-32 lg:self-start">
+          <Gallery gorseller={gorseller} />
+        </div>
+
+        <div className="space-y-5">
           {/* Varyant seçici SUNUCUDA çizilir: seçim bir durum değil, adrestir
               (her varyantın kendi sayfası var). BuyBox'tan önce gelir —
               müşteri önce hangi varyanta baktığını görmeli, sonra fiyatı. */}
@@ -112,23 +198,38 @@ export default async function UrunDetay({ params }: Props) {
               çıkar (sunucu boş eksen döndürür). */}
           {urun.variants.length === 0 ? <NitelikSecici kardesler={kardesler} /> : null}
           {urun.isVariantMaster ? <AtaUyarisi urun={urun} /> : <BuyBox baslangic={urun} />}
+
+          <div className="flex items-center justify-between border-t border-line pt-3">
+            <Paylas baslik={urun.name} metin={urun.subtitle} />
+            {urun.brandName ? (
+              <a
+                href={`/urunler?marka=${encodeURIComponent(urun.brandName)}`}
+                className="text-sm text-soft transition hover:text-accent"
+              >
+                {urun.brandName} ürünleri
+              </a>
+            ) : null}
+          </div>
         </div>
       </div>
 
-      {urun.description ? (
-        <section className="mt-6 max-w-3xl space-y-3">
-          <h2 className="text-lg font-bold">Ürün Açıklaması</h2>
-          {/* Açıklama Markdown olarak çizilir (başlık, liste, kalın, bağlantı);
-              düz metin de olduğu gibi paragraf olur. Ham HTML işlenmez. */}
-          <Markdown metin={urun.description} />
-        </section>
+      <UrunSekmeleri sekmeler={sekmeler} />
+
+      {benzerler.length >= 2 ? (
+        <Serit
+          baslik="Benzer Ürünler"
+          altBaslik={yaprak ? yaprak.name : undefined}
+          tumuHref={yaprak ? kategoriYolu(yaprak) : undefined}
+        >
+          {benzerler.map((u) => (
+            <div key={u.uid} className="w-44 sm:w-52">
+              <ProductCard urun={u} />
+            </div>
+          ))}
+        </Serit>
       ) : null}
 
-      <TeknikOzellikler nitelikler={urun.attributes} />
-      <UrunBilgileri urun={urun} />
-      {/* Yorumlar istemcide çekilir: liste kişiye özel (kendi yorumu) ve
-          onay anında tazelenmeli — ISR'lı iskelete girmez. */}
-      <UrunYorumlari productUid={urun.uid} />
+      <SonGezilenler haric={urun.uid} />
     </div>
   );
 }
@@ -159,8 +260,8 @@ function nitelikDegeri(a: ProductAttribute): string {
 function TeknikOzellikler({ nitelikler }: { nitelikler: ProductAttribute[] }) {
   if (!nitelikler.length) return null;
   return (
-    <section className="max-w-3xl space-y-3">
-      <h2 className="text-lg font-bold">Teknik Özellikler</h2>
+    <div className="space-y-2">
+      <p className="text-sm font-semibold">Özellikler</p>
       <dl className="divide-y divide-line rounded-xl border border-line text-sm">
         {nitelikler.map((a) => (
           <div key={a.key} className="flex items-center justify-between gap-4 px-4 py-2.5">
@@ -169,25 +270,32 @@ function TeknikOzellikler({ nitelikler }: { nitelikler: ProductAttribute[] }) {
           </div>
         ))}
       </dl>
-    </section>
+    </div>
   );
 }
 
-/** Kimlik/özellik satırları — yalnız dolu alanlar listelenir; hepsi boşsa bölüm hiç çıkmaz. */
+/** Kimlik satırları — yalnız dolu alanlar. Tek yerde üretilir ki sekme
+ *  başlığının çizilip çizilmeyeceği de aynı listeye bakabilsin. */
+function urunBilgiSatirlari(urun: StorefrontProduct): [string, string][] {
+  return (
+    [
+      ["Marka", urun.brandName],
+      ["Model", urun.modelName],
+      ["Kategori", urun.categories[0]?.fullName ?? ""],
+      ["Ürün Kodu", urun.code],
+      ["Üretici Kodu", urun.mfrCode],
+      ["Barkod", urun.barcode],
+      ["Birim", urun.unit],
+    ] as [string, string][]
+  ).filter((s): s is [string, string] => Boolean(s[1]));
+}
+
 function UrunBilgileri({ urun }: { urun: StorefrontProduct }) {
-  const satirlar: [string, string][] = [
-    ["Marka", urun.brandName],
-    ["Model", urun.modelName],
-    ["Kategori", urun.categories[0]?.fullName ?? ""],
-    ["Ürün Kodu", urun.code],
-    ["Üretici Kodu", urun.mfrCode],
-    ["Barkod", urun.barcode],
-    ["Birim", urun.unit],
-  ].filter((s): s is [string, string] => Boolean(s[1]));
+  const satirlar = urunBilgiSatirlari(urun);
   if (!satirlar.length) return null;
   return (
-    <section className="max-w-3xl space-y-3">
-      <h2 className="text-lg font-bold">Ürün Bilgileri</h2>
+    <div className="space-y-2">
+      <p className="text-sm font-semibold">Ürün Bilgileri</p>
       <dl className="divide-y divide-line rounded-xl border border-line text-sm">
         {satirlar.map(([etiket, deger]) => (
           <div key={etiket} className="flex items-center justify-between gap-4 px-4 py-2.5">
@@ -196,6 +304,6 @@ function UrunBilgileri({ urun }: { urun: StorefrontProduct }) {
           </div>
         ))}
       </dl>
-    </section>
+    </div>
   );
 }

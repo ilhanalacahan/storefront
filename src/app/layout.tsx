@@ -9,6 +9,7 @@ import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
 import { Providers } from "@/components/providers";
 import { SiteYapisalVerisi } from "@/components/json-ld";
+import { UstBar } from "@/components/ust-bar";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -58,6 +59,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <SiteYapisalVerisi />
         <Providers>
           <DuyuruCubugu duyurular={duyurular} />
+          <UstBar sayfalar={sayfalar.filter((s) => s.showInFooter)} />
           <Header kategoriler={kategoriler} sayfalar={sayfalar.filter((s) => s.showInHeader)} />
           <main className="mx-auto w-full max-w-7xl flex-1 px-4">{children}</main>
           <Footer sayfalar={sayfalar.filter((s) => s.showInFooter)} />

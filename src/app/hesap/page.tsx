@@ -1,9 +1,10 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BadgeCheck, ChevronDown, Heart, KeyRound, Loader2, LogOut, MapPin, Package, Pencil, Plus, Trash2, User } from "lucide-react";
+import { BadgeCheck, BellRing, ChevronDown, Heart, KeyRound, Loader2, LogOut, MapPin, Package, Pencil, Plus, Trash2, TrendingDown, User, X } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -22,6 +23,7 @@ import {
 } from "@/lib/api/account";
 import type { StorefrontAddress } from "@/lib/api/types";
 import { TalepListesi } from "@/components/siparis-detay";
+import { alarmSil, alarmlariGetir, type UrunAlarmi } from "@/lib/api/alarm";
 import { sepetBirlestir } from "@/lib/api/cart";
 import type { StorefrontAuthPayload } from "@/lib/api/types";
 import { fiyat, miktar, ODEME_DURUM, SIPARIS_DURUM, tarih } from "@/lib/format";
@@ -38,8 +40,26 @@ import { useCartStore } from "@/store/cart-store";
  */
 export default function HesapSayfasi() {
   const token = useAuthStore((s) => s.token);
-  return token ? <HesapPaneli /> : <GirisKayit />;
+  // Suspense ŞART: HesapPaneli useSearchParams okur (sekme adresten gelir) ve
+  // Next bunu sınır olmadan statik sayfada kabul etmez.
+  return token ? (
+    <Suspense>
+      <HesapPaneli />
+    </Suspense>
+  ) : (
+    <GirisKayit />
+  );
 }
+
+/** Panel sekmeleri — adres `?sekme=` ile paylaşılabilir (header menüsü de bunu kullanır). */
+const SEKMELER = [
+  { anahtar: "ozet", etiket: "Hesap Bilgilerim", Icon: User },
+  { anahtar: "siparisler", etiket: "Siparişlerim", Icon: Package },
+  { anahtar: "adresler", etiket: "Adreslerim", Icon: MapPin },
+  { anahtar: "alarmlar", etiket: "Alarmlarım", Icon: BellRing },
+] as const;
+
+type SekmeAnahtari = (typeof SEKMELER)[number]["anahtar"];
 
 // ---------------------------------------------------------------------------
 // Giriş / Kayıt
@@ -192,15 +212,33 @@ function GirisKayit() {
 // Hesap paneli
 // ---------------------------------------------------------------------------
 
+/**
+ * HESAP PANELİ — solda menü, sağda seçili bölüm.
+ *
+ * SEKME ADRESTEDİR (?sekme=siparisler): üst çubuktaki hesap menüsü doğrudan
+ * "Siparişlerim"e bağlanabilsin ve müşteri bağlantıyı paylaşabilsin diye.
+ * Bilinmeyen değer özete düşer — yazım hatası hesabı boş göstermez.
+ *
+ * Eski tek sütunlu düzende profil, siparişler ve adresler alt alta uzuyordu;
+ * beş siparişi olan müşteri adres defterine ulaşmak için sayfayı sonuna kadar
+ * kaydırmak zorundaydı.
+ */
 function HesapPaneli() {
   const token = useAuthStore((s) => s.token);
   const account = useAuthStore((s) => s.account);
   const signOut = useAuthStore((s) => s.signOut);
   const clearCart = useCartStore((s) => s.clearCart);
+  const params = useSearchParams();
+
+  const istenen = params.get("sekme") ?? "";
+  const aktif: SekmeAnahtari = SEKMELER.some((s) => s.anahtar === istenen)
+    ? (istenen as SekmeAnahtari)
+    : "ozet";
 
   const siparisQ = useQuery({
     queryKey: ["siparisler"],
     queryFn: () => siparislerim(token),
+    enabled: aktif === "siparisler",
   });
 
   const cikis = () => {
@@ -210,7 +248,7 @@ function HesapPaneli() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5 py-6">
+    <div className="space-y-5 py-6">
       <div className="flex items-center justify-between">
         <h1 className="flex items-center gap-2 text-2xl font-bold">
           <User className="size-6 text-accent" /> Hesabım
@@ -224,38 +262,81 @@ function HesapPaneli() {
         </button>
       </div>
 
-      <ProfilBolumu />
+      <div className="grid gap-5 lg:grid-cols-[16rem_minmax(0,1fr)]">
+        <aside className="lg:sticky lg:top-32 lg:self-start">
+          <nav className="overflow-hidden rounded-2xl border border-line bg-surface">
+            <div className="border-b border-line p-4">
+              <p className="truncate font-semibold">{account?.fullName || "Hesabım"}</p>
+              <p className="truncate text-xs text-soft">{account?.email}</p>
+            </div>
+            <ul className="p-2">
+              {SEKMELER.map((s) => (
+                <li key={s.anahtar}>
+                  <Link
+                    href={`/hesap?sekme=${s.anahtar}`}
+                    scroll={false}
+                    className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition ${
+                      s.anahtar === aktif
+                        ? "bg-accent/10 font-semibold text-accent"
+                        : "text-soft hover:bg-background hover:text-foreground"
+                    }`}
+                  >
+                    <s.Icon className="size-4" aria-hidden />
+                    {s.etiket}
+                  </Link>
+                </li>
+              ))}
+              <li>
+                <Link
+                  href="/favoriler"
+                  className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-soft transition hover:bg-background hover:text-foreground"
+                >
+                  <Heart className="size-4" aria-hidden />
+                  Favorilerim
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/siparis-sorgula"
+                  className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-soft transition hover:bg-background hover:text-foreground"
+                >
+                  <Package className="size-4" aria-hidden />
+                  Sipariş Sorgula
+                </Link>
+              </li>
+            </ul>
+          </nav>
+        </aside>
 
-      <Link
-        href="/favoriler"
-        className="flex items-center justify-between rounded-2xl border border-line bg-surface p-5 text-sm transition hover:border-accent"
-      >
-        <span className="flex items-center gap-2 font-semibold">
-          <Heart className="size-4.5 text-danger" /> Favorilerim
-        </span>
-        <ChevronDown className="size-4 -rotate-90 text-soft" />
-      </Link>
+        <div className="min-w-0 space-y-5">
+          {aktif === "ozet" ? <ProfilBolumu /> : null}
 
-      <section className="rounded-2xl border border-line bg-surface p-5">
-        <h2 className="mb-3 flex items-center gap-2 font-semibold">
-          <Package className="size-4.5 text-accent" /> Siparişlerim
-        </h2>
-        {siparisQ.isPending ? (
-          <div className="h-16 animate-pulse rounded-xl bg-line/40" />
-        ) : !siparisQ.data?.length ? (
-          <p className="text-sm text-soft">
-            Henüz siparişiniz yok. İlk siparişinizde burada görünecek.
-          </p>
-        ) : (
-          <ul className="divide-y divide-line text-sm">
-            {siparisQ.data.map((s) => (
-              <SiparisSatiri key={s.uid} siparis={s} />
-            ))}
-          </ul>
-        )}
-      </section>
+          {aktif === "siparisler" ? (
+            <section className="rounded-2xl border border-line bg-surface p-5">
+              <h2 className="mb-3 flex items-center gap-2 font-semibold">
+                <Package className="size-4.5 text-accent" /> Siparişlerim
+              </h2>
+              {siparisQ.isPending ? (
+                <div className="h-16 animate-pulse rounded-xl bg-line/40" />
+              ) : !siparisQ.data?.length ? (
+                <p className="text-sm text-soft">
+                  Henüz siparişiniz yok. İlk siparişinizde burada görünecek.
+                </p>
+              ) : (
+                <ul className="divide-y divide-line text-sm">
+                  {siparisQ.data.map((s) => (
+                    <SiparisSatiri key={s.uid} siparis={s} />
+                  ))}
+                </ul>
+              )}
+            </section>
+          ) : null}
 
-      <AdreslerBolumu />
+          {aktif === "adresler" ? <AdreslerBolumu /> : null}
+
+          {aktif === "alarmlar" ? <AlarmlarBolumu /> : null}
+        </div>
+      </div>
     </div>
   );
 }
@@ -875,5 +956,82 @@ function EpostaDurumu() {
         {gonderildi ? "Gönderildi" : "Doğrulama bağlantısı gönder"}
       </button>
     </div>
+  );
+}
+
+/**
+ * ALARMLARIM — "gelince/düşünce haber ver" kayıtları.
+ *
+ * Haber verilmiş alarmlar da listede kalır: müşteri "bana haber verildi mi"
+ * sorusunun cevabını burada görür. Referans fiyat GÖSTERİLMEZ — sunucuda ham
+ * ölçekte tutulur (bkz. lib/api/alarm.ts).
+ */
+function AlarmlarBolumu() {
+  const token = useAuthStore((s) => s.token);
+  const qc = useQueryClient();
+  const { data, isPending } = useQuery({
+    queryKey: ["alarmlar"],
+    queryFn: () => alarmlariGetir(token),
+    enabled: !!token,
+  });
+  const sil = useMutation({
+    mutationFn: (a: UrunAlarmi) => alarmSil(a.productUid, a.kind, token),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["alarmlar"] });
+      toast.success("Alarm kaldırıldı.");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Alarm kaldırılamadı."),
+  });
+  const alarmlar = data ?? [];
+
+  return (
+    <section className="rounded-2xl border border-line bg-surface p-5">
+      <h2 className="mb-3 flex items-center gap-2 font-semibold">
+        <BellRing className="size-4.5 text-accent" /> Alarmlarım
+      </h2>
+      {isPending ? (
+        <div className="h-16 animate-pulse rounded-xl bg-line/40" />
+      ) : alarmlar.length === 0 ? (
+        <p className="text-sm text-soft">
+          Henüz alarmınız yok. Ürün sayfasındaki &ldquo;stoğa gelince&rdquo; ya da
+          &ldquo;fiyat düşünce haber ver&rdquo; düğmesiyle kurabilirsiniz.
+        </p>
+      ) : (
+        <ul className="divide-y divide-line text-sm">
+          {alarmlar.map((a) => (
+            <li key={a.uid} className="flex items-center gap-3 py-3">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent/10 text-accent">
+                {a.kind === 1 ? (
+                  <TrendingDown className="size-4" />
+                ) : (
+                  <BellRing className="size-4" />
+                )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <Link
+                  href={`/urun/${encodeURIComponent(a.handle || a.productUid)}`}
+                  className="block truncate font-medium hover:text-accent"
+                >
+                  {a.name}
+                </Link>
+                <p className="text-xs text-soft">
+                  {a.kind === 1 ? "Fiyat düşünce haber ver" : "Stoğa gelince haber ver"}
+                  {a.notifiedAt ? ` · ${tarih(a.notifiedAt)} tarihinde haber verildi` : " · bekliyor"}
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label="Alarmı kaldır"
+                disabled={sil.isPending}
+                onClick={() => sil.mutate(a)}
+                className="flex size-8 shrink-0 items-center justify-center rounded-lg text-soft transition hover:text-danger disabled:opacity-40"
+              >
+                <X className="size-4" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

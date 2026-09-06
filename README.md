@@ -15,7 +15,9 @@ Bu bir **şablondur**: fork'layın, temayı değiştirin, kendi mağazanıza dö
 
 | Özellik | Nasıl |
 |---|---|
-| Ürün listesi + arama | URL paramlı (`/urunler?ara=…`), 300 ms debounce, SSR + ISR; sıralama, marka, stok ve fiyat süzgeçleri sunucuda |
+| Ürün listesi + arama | URL paramlı (`/urunler?ara=…`), 250 ms debounce, SSR + ISR; **sol facet paneli** (kategori · stok · fiyat aralığı · marka · nitelik), aktif süzgeç çipleri, numaralı sayfalama; mobilde alttan açılan süzgeç yaprağı |
+| Arama önerileri | Üst çubukta yazarken açılan liste: ürün (görsel + fiyat) ve eşleşen kategoriler |
+| Mega menü | Üç seviyeli kategori paneli (sol ray + alt kırılım + kategori görseli); mobilde akordeon çekmece |
 | Kategori ağacı + sayfası | `/categories` düz ağaç (`parentUid`) → menü, `/kategoriler` dizini, `/kategori/[handle]` sayfası (kırıntı + alt kategoriler); liste **alt ağacı** kapsar |
 | Nitelik süzgeci | `/attributes` facet'i (kategori şablonundan etiket/tip) → kategori ve arama sayfasında `?n.<anahtar>=<değer>` çipleri; anahtarlar arasında VE |
 | Koleksiyonlar | `/koleksiyon/[handle]` — kürasyon sıralı pazarlama listeleri |
@@ -23,15 +25,24 @@ Bu bir **şablondur**: fork'layın, temayı değiştirin, kendi mağazanıza dö
 | Zengin açıklama | Ürün ve kategori açıklaması aynı Markdown çiziciyle (başlık, liste, kalın, bağlantı, görsel) |
 | Yorum + puan | `/products/{uid}/reviews` — onaylı yorumlar, puan özeti, doğrulanmış alışveriş rozeti; yazma üyeye açık, **onaydan sonra** yayınlanır (TicariApp → Ürün → Yorumlar); kartta yıldız, JSON-LD `aggregateRating` |
 | Favoriler | Kalp düğmesi (kart + ürün sayfası), `/favoriler` listesi; uid kümesi `/account/favorites/uids` |
-| Ürün detayı | Statik iskelet (ISR 120 sn) + **canlı fiyat/stok katmanı** (30 sn'de bir tazelenir); kırıntı yolu, **Teknik Özellikler** (kategori şablonlu `attributes`), varyant seçici |
+| Ürün detayı | Statik iskelet (ISR 120 sn) + **canlı fiyat/stok katmanı** (30 sn'de bir tazelenir); kırıntı yolu, varyant seçici, **yapışkan satın alma kutusu**, sekmeli alt bölüm (açıklama · teknik özellikler · taksit · teslimat/iade · yorumlar · soru-cevap), benzer ürünler ve son gezilenler şeritleri |
+| Galeri | Dikey küçük resim şeridi, fareyle **büyüteç**, tam ekran (ok tuşlarıyla gezinir) |
+| Taksit tablosu | `/installments?amount=` — banka × taksit × vade farkı; **aylık tutar sunucuda hesaplanır** (G5), kuruş kalanı ilk taksite yazılır. Tarife TicariApp → Ayarlar → Satış Politikaları → Taksit Tarifeleri |
+| Soru-Cevap | `/products/{uid}/questions` — müşteri sorar, mağaza yanıtlar ve yayınlar (TicariApp → Ürün → Sorular). Yazan kendi onay bekleyen sorusunu görür |
+| Haber ver | "Stoğa gelince" / "fiyat düşünce" alarmı; arka plan işçisi tarar ve e-posta yollar. Tek atışlıktır, referans fiyat sunucuda damgalanır (V13) |
+| Karşılaştırma | Karta gelince çıkan simgeyle en çok 4 ürün; `/karsilastir` tablosu nitelik birleşiminden türer |
+| Hızlı bakış | Kart üzerinden modal: galeri, fiyat, stok, sepete ekleme (varyantlı/ölçülü üründe ürüne yönlendirir) |
 | Görsel galerisi | ERP'deki `product_image` galerisi, alt metniyle (`gallery` alanı) |
 | Misafir sepeti | `cartUid` localStorage'ta; backend'de token yok, uid = yetki anahtarı |
+| Ücretsiz kargo çubuğu | "Kargo bedavaya X TL kaldı" — kalan tutar ve oran **sunucudan** iner (G5), istemci çıkarma yapmaz |
 | Slide-over sepet | Ürün eklenince yandan açılır; mobil alt navigasyon + rozet |
 | Kupon / kampanya | `cartApplyCoupon` — otomatik kampanya daha iyiyse backend reddeder ve söyler |
 | Üyelik | `storefrontRegister/Login` (kanal kapsamlı hesap, KVKK onayı zorunlu) |
 | Sipariş geçmişi + detay | `/account/orders` listesi; satır açılınca kalemler, teslimat damgaları (kargo firması, takip no), yazdırılabilir sayfa (`/hesap/siparis/[uid]` → tarayıcı "PDF olarak kaydet") |
 | Sipariş self-servisi | İptal (sevk başlamadan) / iade (teslimden sonra) **talebi** — mağaza TicariApp → Evrak → Sipariş Talepleri'nde karar verir, not müşteriye görünür; hesapsız **Sipariş Sorgula** (`/siparis-sorgula`: belge no + e-posta) |
 | Sepet birleştirme | Girişte misafir sepeti hesaba taşınır (`cartMerge`) |
+| Hesap paneli | Sol menülü düzen: hesap bilgileri · siparişler · adresler · alarmlar (`?sekme=` ile paylaşılabilir) |
+| Kurumsal fatura | Ödeme adımında bireysel/kurumsal seçimi; ünvan, VKN ve vergi dairesi e-Arşiv alıcısını besler |
 | Ödeme + sipariş | `cartSetAddress` → `paymentSessionStart` → `paymentSessionAuthorize` — sipariş **tahsilat anında** doğar, stok rezerve edilir |
 | Test ödemesi | "test" sağlayıcısı: başarılı / kart reddi / banka hatası senaryoları seçilebilir |
 

@@ -33,6 +33,12 @@ export interface StorefrontBanner {
   linkUrl: string;
   linkLabel: string;
   sortOrder: number;
+  /**
+   * Kampanyanın bitiş anı (RFC3339; '' = süresiz). Hero ve fırsat şeridi
+   * bundan GERİ SAYIM çizer. Başlangıç taşınmaz — dönem süzgeci sunucudadır,
+   * başlamamış banner listeye zaten girmez.
+   */
+  endsAt: string;
 }
 
 /** Menüyü besleyen aktif sayfalar (gövdesiz), 5 dk ISR. */

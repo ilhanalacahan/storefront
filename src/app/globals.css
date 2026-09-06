@@ -7,18 +7,31 @@
  * markanıza uyarlayın; Tailwind sınıfları (bg-surface, text-soft, border-line,
  * bg-accent…) @theme bloğu üzerinden bu değişkenlere bağlıdır.
  * Koyu tema otomatiktir (prefers-color-scheme).
+ *
+ * TİCARİ PALET AYRIDIR: fiyat, indirim rozeti ve yıldız renkleri markanın
+ * vurgu renginden BAĞIMSIZ tutulur. Aksi hâlde marka rengi yeşile çevrilen
+ * bir mağazada indirim rozeti de yeşil olur ve "ucuzluk" işareti kaybolur —
+ * müşterinin gözü bu üç rengi konvansiyondan tanır.
  */
 :root {
-  --background: #f7f7f8; /* sayfa zemini */
+  --background: #f5f5f7; /* sayfa zemini */
   --surface: #ffffff; /* kart/panel zemini */
   --foreground: #18181b; /* ana metin */
-  --soft: #71717a; /* ikincil metin */
+  --soft: #6b7280; /* ikincil metin */
   --line: #e4e4e7; /* çizgi/çerçeve */
-  --accent: #2563eb; /* marka vurgusu (elektrik mavisi) */
-  --accent-hover: #1d4ed8;
+  --accent: #1d4ed8; /* marka vurgusu */
+  --accent-hover: #1e40af;
   --accent-foreground: #ffffff;
   --success: #16a34a;
   --danger: #dc2626;
+
+  /* Ticari palet */
+  --price: #e11d48; /* satış fiyatı ve indirim rozeti */
+  --star: #f59e0b; /* puan yıldızı */
+  --badge: #0f172a; /* nötr rozet zemini (Yeni, Tükendi) */
+  --badge-foreground: #ffffff;
+  --top-bar: #0f172a; /* üst hizmet çubuğu */
+  --top-bar-foreground: #e2e8f0;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -33,6 +46,13 @@
     --accent-foreground: #ffffff;
     --success: #4ade80;
     --danger: #f87171;
+
+    --price: #fb7185;
+    --star: #fbbf24;
+    --badge: #e4e4e7;
+    --badge-foreground: #18181b;
+    --top-bar: #131316;
+    --top-bar-foreground: #a1a1aa;
   }
 }
 
@@ -47,6 +67,12 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-success: var(--success);
   --color-danger: var(--danger);
+  --color-price: var(--price);
+  --color-star: var(--star);
+  --color-badge: var(--badge);
+  --color-badge-foreground: var(--badge-foreground);
+  --color-top-bar: var(--top-bar);
+  --color-top-bar-foreground: var(--top-bar-foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -62,4 +88,26 @@ body {
   body {
     padding-bottom: 4rem;
   }
+}
+
+/*
+ * YATAY ŞERİT — ürün/kategori carousel'lerinin ortak kaydırma davranışı.
+ * Kaydırma çubuğu gizlenir ama kaydırma KALIR: dokunmatikte parmakla,
+ * masaüstünde ok düğmeleriyle. `scroll-snap` kartı hizada durdurur.
+ */
+.serit {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.serit::-webkit-scrollbar {
+  display: none;
+}
+.serit > * {
+  scroll-snap-align: start;
+  flex: 0 0 auto;
 }

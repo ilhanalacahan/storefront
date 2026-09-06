@@ -5,6 +5,7 @@ import { CheckCircle2, Minus, Plus, XCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { AddToCartButton } from "@/components/add-to-cart";
+import { AlarmDugmeleri } from "@/components/alarm-dugmeleri";
 import { FavoriDugmesi } from "@/components/favori-dugmesi";
 import { Price } from "@/components/price";
 import { Yildizlar } from "@/components/yildizlar";
@@ -105,7 +106,7 @@ export function BuyBox({ baslangic }: { baslangic: StorefrontProduct }) {
           <>
             <Price price={bilesim.price} curCode={bilesim.curCode} size="lg" />
             <p className="text-xs text-soft">
-              KDV (%{Number(bilesim.vatRate)}) dahil · adet başına
+              KDV (%{Number(bilesim.vatRate)}) {bilesim.vatIncluded ? "dahil" : "hariç"} · adet başına
               {bilesim.paramSummary ? ` · ${bilesim.paramSummary}` : ""}
             </p>
             <Kirilim bilesim={bilesim} />
@@ -119,7 +120,7 @@ export function BuyBox({ baslangic }: { baslangic: StorefrontProduct }) {
               size="lg"
             />
             <p className="text-xs text-soft">
-              KDV (%{Number(urun.vatRate)}) dahildir
+              KDV (%{Number(urun.vatRate)}) {urun.vatIncluded === false ? "hariçtir" : "dahildir"}
               {parametreli && urun.unit ? ` · ${urun.unit} başına taban fiyat` : ""}
             </p>
           </>
@@ -184,6 +185,16 @@ export function BuyBox({ baslangic }: { baslangic: StorefrontProduct }) {
         />
         <FavoriDugmesi productUid={urun.uid} gorunum="buton" />
       </div>
+
+      {/* Alarm düğmeleri satın alma kutusunun İÇİNDEDİR: tükenmiş üründe
+          "sepete ekle" pasiftir ve müşterinin oradan yapabileceği tek anlamlı
+          eylem haber istemektir. Parametreli üründe stok bileşime bağlı
+          olduğu için yalnız fiyat alarmı anlamlıdır. */}
+      <AlarmDugmeleri
+        productUid={urun.uid}
+        stokta={parametreli ? true : urun.inStock}
+        siparisleUretilen={urun.madeToOrder}
+      />
 
       <ul className="space-y-1 text-xs text-soft">
         <li>• Fiyat ve stok bilgisi canlıdır; ödeme adımında bir kez daha doğrulanır.</li>

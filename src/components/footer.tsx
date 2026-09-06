@@ -1,91 +1,146 @@
-import { Zap } from "lucide-react";
+import { CreditCard, Lock, Mail, MapPin, Phone, RotateCcw, Truck, Zap } from "lucide-react";
 import Link from "next/link";
 
+import { BultenFormu } from "@/components/bulten-formu";
 import { sayfaYolu, type StorefrontPage } from "@/lib/api/cms";
 import { BELGE_ADLARI, BELGE_SIRASI } from "@/lib/sozlesmeler";
 
 const SITE_ADI = process.env.NEXT_PUBLIC_SITE_NAME ?? "StoreFront";
 
 /**
- * Alt bilgi — mağaza bağlantıları, CMS'den gelen kurumsal sayfalar
- * (showInFooter), yasal metinler. Sayfa listesi layout'tan gelir.
+ * Alt bilgi — dört sütun + bülten + güven şeridi.
+ *
+ * Künye alanları (ünvan, adres, telefon) satıcı bilgisinden gelir ve TANIMSIZ
+ * OLAN ÇİZİLMEZ: uydurma adres basmak, sözleşme sayfasında olduğu gibi burada
+ * da yanlıştır (bkz. lib/satici.ts).
  */
 export function Footer({ sayfalar }: { sayfalar: StorefrontPage[] }) {
+  const unvan = (process.env.NEXT_PUBLIC_SATICI_UNVAN ?? "").trim();
+  const adres = (process.env.NEXT_PUBLIC_SATICI_ADRES ?? "").trim();
+  const telefon = (process.env.NEXT_PUBLIC_SATICI_TELEFON ?? "").trim();
+  const eposta = (process.env.NEXT_PUBLIC_SATICI_EPOSTA ?? "").trim();
+
   return (
     <footer className="mt-16 border-t border-line bg-surface">
-      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-10 md:flex-row md:items-start md:justify-between">
-        <div className="max-w-sm space-y-2">
+      {/* GÜVEN ŞERİDİ — satın alma kararının önündeki dört soru */}
+      <div className="border-b border-line">
+        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-4 px-4 py-6 md:grid-cols-4">
+          {[
+            { Icon: Truck, baslik: "Hızlı Kargo", alt: "Stoktan aynı gün çıkış" },
+            { Icon: RotateCcw, baslik: "14 Gün İade", alt: "Koşulsuz cayma hakkı" },
+            { Icon: Lock, baslik: "Güvenli Ödeme", alt: "3D Secure altyapısı" },
+            { Icon: CreditCard, baslik: "Taksit İmkânı", alt: "Kredi kartına taksit" },
+          ].map(({ Icon, baslik, alt }) => (
+            <div key={baslik} className="flex items-center gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">
+                <Icon className="size-5" />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">{baslik}</p>
+                <p className="truncate text-xs text-soft">{alt}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 md:grid-cols-2 lg:grid-cols-5">
+        {/* Marka + künye */}
+        <div className="space-y-3 lg:col-span-2">
           <div className="flex items-center gap-2">
-            <span className="flex size-7 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-accent text-accent-foreground">
               <Zap className="size-4" />
             </span>
-            <span className="font-bold">{SITE_ADI}</span>
+            <span className="text-base font-bold">{SITE_ADI}</span>
           </div>
-          <p className="text-sm text-soft">
-            TicariCore ERP üzerinde çalışan açık kaynak headless e-ticaret vitrini.
-            Bu bir demo şablonudur — fork'layıp kendi mağazanıza dönüştürün.
+          <p className="max-w-sm text-sm text-soft">
+            Fiyat ve stok doğrudan mağazanın ERP sisteminden gelir — vitrinde gördüğünüz
+            her ürün gerçekten raftadır.
           </p>
-        </div>
-        <div className="flex flex-wrap gap-12 text-sm">
-          <div className="space-y-2">
-            <p className="font-semibold">Mağaza</p>
-            <ul className="space-y-1.5 text-soft">
-              <li><Link href="/kategoriler" className="hover:text-foreground">Kategoriler</Link></li>
-              <li><Link href="/urunler" className="hover:text-foreground">Tüm Ürünler</Link></li>
-              <li><Link href="/koleksiyonlar" className="hover:text-foreground">Koleksiyonlar</Link></li>
-              <li><Link href="/favoriler" className="hover:text-foreground">Favorilerim</Link></li>
-              <li><Link href="/sepet" className="hover:text-foreground">Sepetim</Link></li>
-              <li><Link href="/hesap" className="hover:text-foreground">Hesabım</Link></li>
-              <li><Link href="/siparis-sorgula" className="hover:text-foreground">Sipariş Sorgula</Link></li>
-            </ul>
-          </div>
-          {sayfalar.length ? (
-            <div className="space-y-2">
-              <p className="font-semibold">Kurumsal</p>
-              <ul className="space-y-1.5 text-soft">
-                {sayfalar.map((s) => (
-                  <li key={s.uid}>
-                    <Link href={sayfaYolu(s)} className="hover:text-foreground">
-                      {s.title}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          <div className="space-y-2">
-            <p className="font-semibold">Yasal</p>
-            <ul className="space-y-1.5 text-soft">
-              {BELGE_SIRASI.map((k) => (
-                <li key={k}>
-                  <Link href={`/sozlesmeler/${k}`} className="hover:text-foreground">
-                    {BELGE_ADLARI[k]}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="space-y-2">
-            <p className="font-semibold">Proje</p>
-            <ul className="space-y-1.5 text-soft">
-              <li>
-                <a
-                  href="https://github.com/ilhanalacahan/storefront"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="hover:text-foreground"
-                >
-                  GitHub
+          <ul className="space-y-1.5 text-sm text-soft">
+            {unvan ? <li className="font-medium text-foreground">{unvan}</li> : null}
+            {adres ? (
+              <li className="flex gap-2">
+                <MapPin className="mt-0.5 size-4 shrink-0" aria-hidden />
+                {adres}
+              </li>
+            ) : null}
+            {telefon ? (
+              <li className="flex gap-2">
+                <Phone className="mt-0.5 size-4 shrink-0" aria-hidden />
+                <a href={`tel:${telefon.replace(/\s/g, "")}`} className="hover:text-foreground">
+                  {telefon}
                 </a>
               </li>
-              <li><span>MIT Lisansı</span></li>
-            </ul>
-          </div>
+            ) : null}
+            {eposta ? (
+              <li className="flex gap-2">
+                <Mail className="mt-0.5 size-4 shrink-0" aria-hidden />
+                <a href={`mailto:${eposta}`} className="hover:text-foreground">
+                  {eposta}
+                </a>
+              </li>
+            ) : null}
+          </ul>
+        </div>
+
+        <FooterSutun baslik="Mağaza">
+          <FooterBaglanti href="/kategoriler">Kategoriler</FooterBaglanti>
+          <FooterBaglanti href="/urunler">Tüm Ürünler</FooterBaglanti>
+          <FooterBaglanti href="/koleksiyonlar">Koleksiyonlar</FooterBaglanti>
+          <FooterBaglanti href="/urunler?sirala=yeni">Yeni Gelenler</FooterBaglanti>
+          <FooterBaglanti href="/karsilastir">Karşılaştırma</FooterBaglanti>
+        </FooterSutun>
+
+        <FooterSutun baslik="Hesabım">
+          <FooterBaglanti href="/hesap">Hesabım</FooterBaglanti>
+          <FooterBaglanti href="/favoriler">Favorilerim</FooterBaglanti>
+          <FooterBaglanti href="/sepet">Sepetim</FooterBaglanti>
+          <FooterBaglanti href="/siparis-sorgula">Sipariş Sorgula</FooterBaglanti>
+          {sayfalar.map((s) => (
+            <FooterBaglanti key={s.uid} href={sayfaYolu(s)}>
+              {s.title}
+            </FooterBaglanti>
+          ))}
+        </FooterSutun>
+
+        <FooterSutun baslik="Yasal">
+          {BELGE_SIRASI.map((k) => (
+            <FooterBaglanti key={k} href={`/sozlesmeler/${k}`}>
+              {BELGE_ADLARI[k]}
+            </FooterBaglanti>
+          ))}
+        </FooterSutun>
+      </div>
+
+      <div className="border-t border-line">
+        <div className="mx-auto max-w-7xl px-4 py-8">
+          <BultenFormu />
         </div>
       </div>
+
       <div className="border-t border-line py-4 text-center text-xs text-soft">
-        StoreFront — TicariCore headless demo · fiyatlar KDV dahildir
+        © {new Date().getFullYear()} {unvan || SITE_ADI} · Fiyatlara KDV dahildir
       </div>
     </footer>
+  );
+}
+
+function FooterSutun({ baslik, children }: { baslik: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-semibold">{baslik}</p>
+      <ul className="space-y-1.5 text-sm text-soft">{children}</ul>
+    </div>
+  );
+}
+
+function FooterBaglanti({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <li>
+      <Link href={href} className="transition hover:text-foreground">
+        {children}
+      </Link>
+    </li>
   );
 }

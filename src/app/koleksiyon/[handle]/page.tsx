@@ -1,63 +1,110 @@
-import { ChevronLeft, ChevronRight, PackageSearch } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
-import { ProductCard } from "@/components/product-card";
-import { koleksiyonGetir, urunleriGetir } from "@/lib/api/catalog";
+import { KatalogDuzeni } from "@/components/katalog-duzeni";
+import {
+  AktifSuzgecler,
+  FacetPaneli,
+  KatalogBos,
+  KatalogHata,
+  SAYFA_BOYU,
+  Sayfalama,
+  SiralamaSecici,
+  UrunIzgarasi,
+  katalogLinkKurucu,
+  katalogSorgusuCoz,
+  suzgecVarMi,
+  type HamKatalogSorgusu,
+} from "@/components/katalog-listesi";
+import { Markdown } from "@/lib/markdown";
+import {
+  koleksiyonGetir,
+  markalariGetir,
+  nitelikleriGetir,
+  urunSayfasiGetir,
+} from "@/lib/api/catalog";
 
 /**
  * Koleksiyon sayfası (/koleksiyon/[handle]) — başlık koleksiyondan, ürünler
  * koleksiyonun KÜRASYON sırasıyla gelir (backend match.sort_order'a göre
- * dizer). Sayfalama /urunler ile aynı kalıptır (24+1 hilesi).
+ * dizer).
+ *
+ * Süzgeç, sıralama ve sayfalama /urunler ile AYNI bileşenlerdir. Kendi
+ * sayfalamasını taşıyan eski hâli (24+1 hilesi) sayfa numarası gösteremiyor,
+ * facet paneli hiç sunmuyordu — üç liste sayfasının üçüncüsü olarak geride
+ * kalmıştı.
+ *
+ * SIRALAMA SEÇİLİRSE KÜRASYON SIRASI DEVREDEN ÇIKAR: bu bilinçlidir, müşteri
+ * "artan fiyat" dediğinde kürasyon sırası bir tercih olmaktan çıkar.
  */
 
-const SAYFA_BOYU = 24;
-
-export async function generateMetadata({
-  params,
-}: {
+interface Props {
   params: Promise<{ handle: string }>;
-}): Promise<Metadata> {
+  searchParams: Promise<HamKatalogSorgusu>;
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { handle } = await params;
   const koleksiyon = await koleksiyonGetir(handle);
   if (!koleksiyon) return { title: "Koleksiyon" };
   return {
     title: koleksiyon.name,
     description: koleksiyon.description || undefined,
+    alternates: { canonical: `/koleksiyon/${koleksiyon.handle || koleksiyon.uid}` },
   };
 }
 
-export default async function Koleksiyon({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ handle: string }>;
-  searchParams: Promise<{ sayfa?: string }>;
-}) {
-  const { handle } = await params;
-  const { sayfa: sayfaParam } = await searchParams;
-  const sayfa = Math.max(1, Number(sayfaParam) || 1);
+export default async function Koleksiyon({ params, searchParams }: Props) {
+  const [{ handle }, ham] = await Promise.all([params, searchParams]);
+  const sorgu = katalogSorgusuCoz(ham);
 
   const koleksiyon = await koleksiyonGetir(handle);
   if (!koleksiyon) notFound();
 
-  let urunler: Awaited<ReturnType<typeof urunleriGetir>> = [];
+  let sonuc: Awaited<ReturnType<typeof urunSayfasiGetir>> = { urunler: [], toplam: 0 };
+  let markalar: Awaited<ReturnType<typeof markalariGetir>> = [];
+  let nitelikler: Awaited<ReturnType<typeof nitelikleriGetir>> = [];
   let hata = "";
   try {
-    urunler = await urunleriGetir({
-      collectionUid: koleksiyon.uid,
-      limit: SAYFA_BOYU + 1, // +1: sonraki sayfa var mı?
-      offset: (sayfa - 1) * SAYFA_BOYU,
-    });
+    [sonuc, markalar, nitelikler] = await Promise.all([
+      urunSayfasiGetir({
+        collectionUid: koleksiyon.uid,
+        search: sorgu.ara,
+        brand: sorgu.marka,
+        sort: sorgu.sirala,
+        inStock: sorgu.stokta,
+        minPrice: sorgu.enAz,
+        maxPrice: sorgu.enCok,
+        attributes: sorgu.nitelikler,
+        limit: SAYFA_BOYU,
+        offset: (sorgu.sayfa - 1) * SAYFA_BOYU,
+      }),
+      markalariGetir({
+        collectionUid: koleksiyon.uid,
+        search: sorgu.ara,
+        minPrice: sorgu.enAz,
+        maxPrice: sorgu.enCok,
+        attributes: sorgu.nitelikler,
+      }).catch(() => []),
+      nitelikleriGetir({
+        collectionUid: koleksiyon.uid,
+        search: sorgu.ara,
+        brand: sorgu.marka,
+        minPrice: sorgu.enAz,
+        maxPrice: sorgu.enCok,
+        attributes: sorgu.nitelikler,
+      }).catch(() => []),
+    ]);
   } catch (e) {
     hata = e instanceof Error ? e.message : "Ürünler yüklenemedi.";
   }
-  const sonrakiVar = urunler.length > SAYFA_BOYU;
-  const gorunen = sonrakiVar ? urunler.slice(0, SAYFA_BOYU) : urunler;
 
-  const sayfaLinki = (n: number) =>
-    n > 1 ? `/koleksiyon/${koleksiyon.handle}?sayfa=${n}` : `/koleksiyon/${koleksiyon.handle}`;
+  const yol = `/koleksiyon/${koleksiyon.handle || koleksiyon.uid}`;
+  const linkYap = katalogLinkKurucu(yol, sorgu);
+  const sonSayfa = Math.max(1, Math.ceil(sonuc.toplam / SAYFA_BOYU));
+  const suzgecVar = suzgecVarMi(sorgu);
 
   return (
     <div className="space-y-5 py-6">
@@ -68,12 +115,15 @@ export default async function Koleksiyon({
           </Link>{" "}
           / <span className="text-foreground">{koleksiyon.name}</span>
         </nav>
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h1 className="text-2xl font-bold">{koleksiyon.name}</h1>
-          {sayfa > 1 ? <p className="text-sm text-soft">Sayfa {sayfa}</p> : null}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-2xl font-bold">
+            {koleksiyon.name}{" "}
+            <span className="text-base font-normal text-soft">({sonuc.toplam})</span>
+          </h1>
+          <SiralamaSecici sorgu={sorgu} linkYap={linkYap} />
         </div>
         {koleksiyon.description ? (
-          <p className="max-w-2xl text-sm text-soft">{koleksiyon.description}</p>
+          <Markdown metin={koleksiyon.description} className="max-w-2xl" />
         ) : null}
       </div>
 
@@ -86,48 +136,40 @@ export default async function Koleksiyon({
         />
       ) : null}
 
-      {hata ? (
-        <div className="rounded-2xl border border-line bg-surface p-10 text-center text-sm text-soft">
-          {hata}
-        </div>
-      ) : gorunen.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-2xl border border-line bg-surface p-12 text-center">
-          <PackageSearch className="size-10 text-soft/50" />
-          <p className="font-medium">Bu koleksiyonda yayında ürün yok</p>
-          <Link href="/urunler" className="text-sm font-medium text-accent hover:underline">
-            Tüm ürünleri göster
-          </Link>
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {gorunen.map((u) => (
-              <ProductCard key={u.uid} urun={u} />
-            ))}
-          </div>
+      <Suspense>
+        <KatalogDuzeni
+          panel={
+            <FacetPaneli
+              sorgu={sorgu}
+              markalar={markalar}
+              facetler={nitelikler}
+              linkYap={linkYap}
+            />
+          }
+        >
+          <AktifSuzgecler
+            sorgu={sorgu}
+            linkYap={linkYap}
+            temizleHref={yol}
+            facetler={nitelikler}
+          />
 
-          {(sayfa > 1 || sonrakiVar) && (
-            <nav className="flex items-center justify-center gap-2 pt-4" aria-label="Sayfalama">
-              {sayfa > 1 ? (
-                <Link
-                  href={sayfaLinki(sayfa - 1)}
-                  className="flex h-10 items-center gap-1 rounded-xl border border-line bg-surface px-4 text-sm font-medium transition hover:border-accent"
-                >
-                  <ChevronLeft className="size-4" /> Önceki
-                </Link>
-              ) : null}
-              {sonrakiVar ? (
-                <Link
-                  href={sayfaLinki(sayfa + 1)}
-                  className="flex h-10 items-center gap-1 rounded-xl border border-line bg-surface px-4 text-sm font-medium transition hover:border-accent"
-                >
-                  Sonraki <ChevronRight className="size-4" />
-                </Link>
-              ) : null}
-            </nav>
+          {hata ? (
+            <KatalogHata mesaj={hata} />
+          ) : sonuc.urunler.length === 0 ? (
+            <KatalogBos
+              baslik={suzgecVar ? "Sonuç bulunamadı" : "Bu koleksiyonda yayında ürün yok"}
+              suzgecVar={suzgecVar}
+              temizleHref={suzgecVar ? yol : "/urunler"}
+            />
+          ) : (
+            <>
+              <UrunIzgarasi urunler={sonuc.urunler} />
+              <Sayfalama sayfa={sorgu.sayfa} sonSayfa={sonSayfa} linkYap={linkYap} />
+            </>
           )}
-        </>
-      )}
+        </KatalogDuzeni>
+      </Suspense>
     </div>
   );
 }

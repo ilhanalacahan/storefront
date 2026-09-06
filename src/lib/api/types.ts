@@ -25,11 +25,23 @@ export interface StorefrontProduct {
   description: string;
   handle: string;
   imageUrl: string;
+  /**
+   * Galerinin ana görselden farklı ilk karesi ('' = yok). Kart fareyle
+   * üzerine gelince buna geçer. LİSTEDE de doludur — tek LATERAL ile çözülür,
+   * galeri dizisinin aksine N+1 doğurmaz (V7).
+   */
+  hoverImageUrl: string;
   /** Vitrin SEO meta'sı ('' = yok; sayfa ad/alt başlıktan türetir). */
   metaTitle: string;
   metaDescription: string;
-  /** KDV DAHİL vitrin fiyatı (etiket fiyatı bağlayıcıdır). */
+  /** Vitrin fiyatı — kanalın KDV rejiminde (bkz. vatIncluded). Etiket bağlayıcıdır (G6). */
   price: string;
+  /**
+   * Kanalın gösterim rejimi: true → price KDV dahil (B2C), false → KDV hariç
+   * (B2B vitrini). Sepet ve bileşim aynı rejimde döner; istemci etiketi buna
+   * göre yazar, çevirmez.
+   */
+  vatIncluded: boolean;
   /** Üstü çizili fiyat ('' = indirim yok). */
   compareAtPrice: string;
   curCode: number;
@@ -141,6 +153,8 @@ export interface ProductComposeResult {
   unit: string;
   curCode: number;
   vatRate: string;
+  /** Kanalın rejimi: price/basePrice/lineTotal dahil mi hariç mi. */
+  vatIncluded: boolean;
   inStock: boolean;
   available: string;
   madeToOrder: boolean;
@@ -325,6 +339,13 @@ export interface CartLine {
   lineSubTotal: string;
   lineTaxTotal: string;
   lineTotal: string;
+  /**
+   * Satırın görseli ve ürün adresi ('' = ürün silinmiş ya da görseli yok).
+   * Kanal ilanı ezmesini izler ve SNAPSHOT DEĞİLDİR: sepet açık bir alışveriş
+   * oturumudur, ürünün görseli değişirse sepette de yenisi görünür.
+   */
+  imageUrl: string;
+  handle: string;
 }
 
 export interface Cart {
@@ -354,6 +375,17 @@ export interface Cart {
   /** Seçili teslimat yöntemi ('' = seçilmedi) — seçimin tek doğruluk kaynağı. */
   shippingMethodCode: string;
   grandTotal: string;
+  /** Kanalın gösterim rejimi: true → satırda grossUnitPrice, false → unitPrice (KDV hariç) gösterilir. */
+  vatIncluded: boolean;
+  /**
+   * ÜCRETSİZ KARGO ÇUBUĞU — sunucuda çözülür (G5: istemci parasal aritmetik
+   * yapmaz). `freeShippingThreshold` '' ise kanalda eşikli tarife yoktur ve
+   * çubuk hiç çizilmez; `freeShippingRemaining` "0" ise eşik geçilmiştir.
+   * `freeShippingProgress` 0–100 arası orandır (oran para değildir).
+   */
+  freeShippingThreshold: string;
+  freeShippingRemaining: string;
+  freeShippingProgress: number;
   /** Adres alanları girdiyle simetriktir: yazılan her alan geri okunabilir. */
   shipName: string;
   shipAddress: string;

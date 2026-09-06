@@ -1,4 +1,4 @@
-import { apiIstemci } from "./client";
+import { apiIstemci, apiSunucu } from "./client";
 import type { Cart, CartAddressInput, ShippingMethod } from "./types";
 
 /**
@@ -132,6 +132,23 @@ export async function kargoSecenekleri(
     { token },
   );
   return d.methods;
+}
+
+/**
+ * Teslimat TARİFESİ — sunucu tarafı (sepetsiz) okuma. Ürün sayfasındaki
+ * "Teslimat ve İade" kutusu bunu kullanır: orada henüz sepet yoktur, bu yüzden
+ * ücretler tarifedeki sabit değerlerdir ve ücretsiz kargo sınırı bilgi olarak
+ * gösterilir. Sepetteki gerçek ücret yine sepet yanıtından okunur (V5).
+ */
+export async function kargoTarifesiGetir(): Promise<ShippingMethod[]> {
+  try {
+    const d = await apiSunucu<{ methods: ShippingMethod[] }>("/shipping/methods", {
+      revalidate: 300,
+    });
+    return d.methods;
+  } catch {
+    return [];
+  }
 }
 
 /** Sepete teslimat yöntemini yazar; GÜNCEL sepeti döndürür (kupon uçlarıyla aynı sözleşme). */

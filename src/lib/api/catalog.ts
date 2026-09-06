@@ -316,6 +316,27 @@ export async function urunGetir(uid: string): Promise<StorefrontProduct | null> 
   }
 }
 
+/**
+ * Tarayıcı tarafı arama — üst çubuğun ÖNERİ AÇILIR LİSTESİ.
+ *
+ * Sunucu yolundan (urunleriGetir) ayrıdır ve bilinçlidir: öneri listesi
+ * kişiye özel değildir ama her tuş vuruşunda ISR önbelleği kirletmemelidir;
+ * proxy üzerinden gitmek anahtarı da istemciden uzak tutar (V1). Hata
+ * yutulur — arama kutusu, ağ hatası yüzünden yazmayı engellememelidir.
+ */
+export async function urunAraCanli(arama: string, limit = 6): Promise<StorefrontProduct[]> {
+  const q = arama.trim();
+  if (!q) return [];
+  try {
+    const d = await apiIstemci<{ products: StorefrontProduct[] }>(
+      `/products${sorgu({ search: q, limit })}`,
+    );
+    return d.products ?? [];
+  } catch {
+    return [];
+  }
+}
+
 /** Tarayıcı tarafı detay — PDP açıkken güncel fiyat/stok (TanStack Query ile). */
 export async function urunGetirCanli(uid: string): Promise<StorefrontProduct | null> {
   try {

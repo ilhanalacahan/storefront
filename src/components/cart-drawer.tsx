@@ -4,7 +4,7 @@ import { ShoppingBag, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect } from "react";
 
-import { CartLines, CartTotals } from "@/components/cart-lines";
+import { CartLines, CartTotals, KargoIlerlemesi } from "@/components/cart-lines";
 import { useCart } from "@/hooks/use-cart";
 import { useCartStore } from "@/store/cart-store";
 
@@ -64,7 +64,12 @@ export function CartDrawer() {
 
         <div className="flex-1 overflow-y-auto px-4">
           {dolu ? (
-            <CartLines sepet={sepet} />
+            <>
+              <div className="pt-3">
+                <KargoIlerlemesi sepet={sepet} />
+              </div>
+              <CartLines sepet={sepet} kompakt />
+            </>
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
               <ShoppingBag className="size-10 text-soft/50" />

@@ -13,12 +13,16 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { AdresSecici } from "@/components/adres-secici";
 import { CartTotals } from "@/components/cart-lines";
+import { OdemeAdimlari } from "@/components/odeme-adimlari";
+import { ProductImage } from "@/components/product-image";
 import { SozlesmeOnayi } from "@/components/sozlesme-onayi";
+import { TaksitOzeti } from "@/components/taksit-ozeti";
 import { TeslimatSecimi } from "@/components/teslimat-secimi";
 import { useAdresYaz, useCart } from "@/hooks/use-cart";
 import { odemeBaslat, odemeIptal, odemeOnayla, odemeOturumu } from "@/lib/api/payment";
-import type { PaymentSession } from "@/lib/api/types";
+import type { PaymentSession, StorefrontAddress } from "@/lib/api/types";
 import { fiyat } from "@/lib/format";
 import { clientUidAl, odemeIziniSil, oturumUidOku, oturumUidYaz } from "@/lib/odeme-izi";
 import { useAuthStore } from "@/store/auth-store";
@@ -54,6 +58,17 @@ interface AdresForm {
   shipAddress: string;
   shipDistrict: string;
   shipCity: string;
+  shipPostalCode: string;
+  /**
+   * FATURA TİPİ — bireysel ya da kurumsal. Kurumsalda ünvan, VKN ve vergi
+   * dairesi zorunludur; e-Arşiv/e-Fatura alıcısı bu alanlardan kurulur.
+   * Tip sepete YAZILMAZ: sunucu kurumsal alanların dolu olmasından anlar —
+   * ikinci bir "tip" alanı, alanlarla çelişebilecek bir gerçek üretirdi.
+   */
+  kurumsal: boolean;
+  billCompName: string;
+  billTaxNumber: string;
+  billTaxOffice: string;
 }
 
 /** Test sağlayıcısı gerçek bir adrese gitmez; 3D adımı sayfadaki panelde canlanır. */
@@ -78,6 +93,11 @@ export default function OdemeSayfasi() {
     shipAddress: "",
     shipDistrict: "",
     shipCity: "",
+    shipPostalCode: "",
+    kurumsal: false,
+    billCompName: "",
+    billTaxNumber: "",
+    billTaxOffice: "",
   });
   const [senaryo, setSenaryo] = useState(""); // '' başarılı · 'red' · 'hata'
   const [oturum, setOturum] = useState<PaymentSession | null>(null);
@@ -103,6 +123,13 @@ export default function OdemeSayfasi() {
       shipAddress: sepet.shipAddress || f.shipAddress,
       shipDistrict: sepet.shipDistrict || f.shipDistrict,
       shipCity: sepet.shipCity || f.shipCity,
+      shipPostalCode: sepet.shipPostalCode || f.shipPostalCode,
+      // Kurumsal fatura sepette ünvanın DOLU olmasından anlaşılır: ayrı bir
+      // tip alanı yok (bkz. AdresForm.kurumsal).
+      kurumsal: Boolean(sepet.billCompName) || f.kurumsal,
+      billCompName: sepet.billCompName || f.billCompName,
+      billTaxNumber: sepet.billTaxNumber || f.billTaxNumber,
+      billTaxOffice: sepet.billTaxOffice || f.billTaxOffice,
     }));
   }, [sepet]);
 
@@ -131,7 +158,24 @@ export default function OdemeSayfasi() {
     };
   }, [cartUid, token, router]);
 
-  const alan = (k: keyof AdresForm, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const alan = (k: keyof AdresForm, v: string | boolean) =>
+    setForm((f) => ({ ...f, [k]: v }));
+
+  /** Adres defterinden seçim: form doldurulur, müşteri isterse düzenler. */
+  const defterdenDoldur = (a: StorefrontAddress) =>
+    setForm((f) => ({
+      ...f,
+      customerName: a.fullName || f.customerName,
+      phone: a.phone || f.phone,
+      shipAddress: a.address,
+      shipDistrict: a.district,
+      shipCity: a.city,
+      shipPostalCode: a.postalCode,
+      kurumsal: Boolean(a.compName) || f.kurumsal,
+      billCompName: a.compName || f.billCompName,
+      billTaxNumber: a.taxNumber || f.billTaxNumber,
+      billTaxOffice: a.taxOffice || f.billTaxOffice,
+    }));
 
   const adresiKaydet = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,12 +188,19 @@ export default function OdemeSayfasi() {
         shipAddress: form.shipAddress,
         shipDistrict: form.shipDistrict,
         shipCity: form.shipCity,
-        // Demo: fatura = teslimat. Kurumsal fatura alanları API'de hazır
-        // (billCompName, billTaxNumber…) — ihtiyaç olursa forma ekleyin.
+        shipPostalCode: form.shipPostalCode,
+        // Fatura adresi teslimat adresiyle aynıdır; farklı olan yalnız
+        // KURUMSAL alanlardır. Ayrı bir fatura adresi formu bilinçli olarak
+        // açılmadı: e-Arşiv alıcısı için gereken kimliktir, ikinci bir adres
+        // değil — istenirse API zaten bill* alanlarının tamamını kabul eder.
         billName: form.customerName,
         billAddress: form.shipAddress,
         billDistrict: form.shipDistrict,
         billCity: form.shipCity,
+        billPostalCode: form.shipPostalCode,
+        billCompName: form.kurumsal ? form.billCompName : "",
+        billTaxNumber: form.kurumsal ? form.billTaxNumber : "",
+        billTaxOffice: form.kurumsal ? form.billTaxOffice : "",
       });
       setAdim("odeme");
     } catch (err) {
@@ -248,9 +299,12 @@ export default function OdemeSayfasi() {
     "h-11 w-full rounded-xl border border-line bg-background px-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20";
 
   return (
-    <div className="mx-auto max-w-4xl py-6">
-      <h1 className="mb-5 text-2xl font-bold">Ödeme</h1>
-      <div className="grid gap-6 md:grid-cols-[1fr_320px]">
+    <div className="mx-auto max-w-5xl py-6">
+      <div className="mb-5 space-y-4">
+        <h1 className="text-2xl font-bold">Ödeme</h1>
+        <OdemeAdimlari aktif={adim === "adres" ? "adres" : oturum ? "odeme" : "teslimat"} />
+      </div>
+      <div className="grid gap-6 md:grid-cols-[1fr_340px]">
         <div className="space-y-4">
           {/* ADIM 1: ADRES */}
           <section className="rounded-2xl border border-line bg-surface p-5">
@@ -258,7 +312,9 @@ export default function OdemeSayfasi() {
               <MapPin className="size-4.5 text-accent" /> Teslimat Bilgileri
             </h2>
             {adim === "adres" ? (
-              <form onSubmit={adresiKaydet} className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-4">
+                <AdresSecici onSec={defterdenDoldur} />
+                <form onSubmit={adresiKaydet} className="grid gap-3 sm:grid-cols-2">
                 <input
                   required
                   type="email"
@@ -293,6 +349,12 @@ export default function OdemeSayfasi() {
                   onChange={(e) => alan("shipDistrict", e.target.value)}
                   className={girdiSinifi}
                 />
+                <input
+                  placeholder="Posta kodu"
+                  value={form.shipPostalCode}
+                  onChange={(e) => alan("shipPostalCode", e.target.value)}
+                  className={girdiSinifi}
+                />
                 <textarea
                   required
                   placeholder="Açık adres *"
@@ -301,15 +363,66 @@ export default function OdemeSayfasi() {
                   rows={2}
                   className="rounded-xl border border-line bg-background p-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20 sm:col-span-2"
                 />
+
+                {/* FATURA TİPİ — kurumsal seçilirse e-Arşiv alıcısı için
+                    ünvan/VKN/vergi dairesi gerekir; bireyselde hiç sorulmaz. */}
+                <div className="space-y-3 rounded-xl border border-line p-3 sm:col-span-2">
+                  <div className="flex gap-2">
+                    {[
+                      { k: false, ad: "Bireysel" },
+                      { k: true, ad: "Kurumsal" },
+                    ].map((t) => (
+                      <button
+                        key={t.ad}
+                        type="button"
+                        onClick={() => alan("kurumsal", t.k)}
+                        className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+                          form.kurumsal === t.k
+                            ? "border-accent bg-accent/10 text-accent"
+                            : "border-line hover:border-soft"
+                        }`}
+                      >
+                        {t.ad} Fatura
+                      </button>
+                    ))}
+                  </div>
+                  {form.kurumsal ? (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <input
+                        required
+                        placeholder="Firma ünvanı *"
+                        value={form.billCompName}
+                        onChange={(e) => alan("billCompName", e.target.value)}
+                        className={`${girdiSinifi} sm:col-span-2`}
+                      />
+                      <input
+                        required
+                        inputMode="numeric"
+                        placeholder="Vergi / TC kimlik no *"
+                        value={form.billTaxNumber}
+                        onChange={(e) => alan("billTaxNumber", e.target.value)}
+                        className={girdiSinifi}
+                      />
+                      <input
+                        placeholder="Vergi dairesi"
+                        value={form.billTaxOffice}
+                        onChange={(e) => alan("billTaxOffice", e.target.value)}
+                        className={girdiSinifi}
+                      />
+                    </div>
+                  ) : null}
+                </div>
+
                 <button
                   type="submit"
                   disabled={adresYaz.isPending}
                   className="flex h-11 items-center justify-center gap-2 rounded-xl bg-accent font-semibold text-accent-foreground transition hover:bg-accent-hover disabled:opacity-40 sm:col-span-2"
                 >
                   {adresYaz.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
-                  Ödeme Adımına Geç
+                  Teslimat Adımına Geç
                 </button>
-              </form>
+                </form>
+              </div>
             ) : (
               <div className="flex items-start justify-between gap-3 text-sm">
                 <div className="text-soft">
@@ -456,19 +569,31 @@ export default function OdemeSayfasi() {
         </div>
 
         {/* SİPARİŞ ÖZETİ */}
-        <aside className="h-fit rounded-2xl border border-line bg-surface p-4">
+        <aside className="h-fit rounded-2xl border border-line bg-surface p-4 md:sticky md:top-32">
           <h2 className="mb-3 font-semibold">Sipariş Özeti</h2>
-          <ul className="mb-3 space-y-1.5 text-sm">
+          <ul className="mb-3 max-h-72 space-y-2 overflow-y-auto text-sm">
             {sepet.lines.map((l) => (
-              <li key={l.productUid} className="flex justify-between gap-2">
-                <span className="truncate text-soft">
-                  {l.name} <span className="text-xs">×{Number(l.quantity)}</span>
+              <li key={l.lineUid || l.productUid} className="flex items-center gap-2">
+                <span className="relative size-12 shrink-0 overflow-hidden rounded-lg border border-line bg-background">
+                  <ProductImage src={l.imageUrl} alt={l.name} sizes="48px" />
                 </span>
-                <span className="shrink-0">{fiyat(l.lineTotal, sepet.curCode)}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate">{l.name}</span>
+                  <span className="block text-xs text-soft">
+                    {Number(l.quantity)} adet
+                    {l.paramSummary ? ` · ${l.paramSummary}` : ""}
+                  </span>
+                </span>
+                <span className="shrink-0 font-medium">{fiyat(l.lineTotal, sepet.curCode)}</span>
               </li>
             ))}
           </ul>
           <CartTotals sepet={sepet} />
+          <TaksitOzeti tutar={sepet.grandTotal} curCode={sepet.curCode} />
+          <p className="mt-3 flex items-center gap-1.5 border-t border-line pt-3 text-xs text-soft">
+            <Lock className="size-3.5 shrink-0" aria-hidden />
+            Ödeme bilgileriniz mağazada saklanmaz; işlem 3D Secure ile yapılır.
+          </p>
         </aside>
       </div>
     </div>
