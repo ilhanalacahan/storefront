@@ -7,9 +7,9 @@ import { KatalogDuzeni } from "@/components/katalog-duzeni";
 import {
   AktifSuzgecler,
   FacetPaneli,
+  GorunumSecici,
   KatalogBos,
   KatalogHata,
-  SAYFA_BOYU,
   Sayfalama,
   SiralamaSecici,
   UrunIzgarasi,
@@ -78,8 +78,8 @@ export default async function Koleksiyon({ params, searchParams }: Props) {
         minPrice: sorgu.enAz,
         maxPrice: sorgu.enCok,
         attributes: sorgu.nitelikler,
-        limit: SAYFA_BOYU,
-        offset: (sorgu.sayfa - 1) * SAYFA_BOYU,
+        limit: sorgu.boyut,
+        offset: (sorgu.sayfa - 1) * sorgu.boyut,
       }),
       markalariGetir({
         collectionUid: koleksiyon.uid,
@@ -103,7 +103,7 @@ export default async function Koleksiyon({ params, searchParams }: Props) {
 
   const yol = `/koleksiyon/${koleksiyon.handle || koleksiyon.uid}`;
   const linkYap = katalogLinkKurucu(yol, sorgu);
-  const sonSayfa = Math.max(1, Math.ceil(sonuc.toplam / SAYFA_BOYU));
+  const sonSayfa = Math.max(1, Math.ceil(sonuc.toplam / sorgu.boyut));
   const suzgecVar = suzgecVarMi(sorgu);
 
   return (
@@ -120,7 +120,10 @@ export default async function Koleksiyon({ params, searchParams }: Props) {
             {koleksiyon.name}{" "}
             <span className="text-base font-normal text-soft">({sonuc.toplam})</span>
           </h1>
+          <div className="flex items-center gap-3">
           <SiralamaSecici sorgu={sorgu} linkYap={linkYap} />
+          <GorunumSecici sorgu={sorgu} linkYap={linkYap} />
+        </div>
         </div>
         {koleksiyon.description ? (
           <Markdown metin={koleksiyon.description} className="max-w-2xl" />
@@ -164,7 +167,7 @@ export default async function Koleksiyon({ params, searchParams }: Props) {
             />
           ) : (
             <>
-              <UrunIzgarasi urunler={sonuc.urunler} />
+              <UrunIzgarasi urunler={sonuc.urunler} gorunum={sorgu.gorunum} />
               <Sayfalama sayfa={sorgu.sayfa} sonSayfa={sonSayfa} linkYap={linkYap} />
             </>
           )}

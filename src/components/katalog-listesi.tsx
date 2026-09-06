@@ -1,8 +1,9 @@
-import { ChevronLeft, ChevronRight, PackageSearch, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, LayoutGrid, List, PackageSearch, X } from "lucide-react";
 import Link from "next/link";
 
 import { FiyatAraligiSuzgeci } from "@/components/fiyat-araligi";
 import { ProductCard } from "@/components/product-card";
+import { ProductRow } from "@/components/product-row";
 import type { StorefrontAttributeFacet, StorefrontBrandItem, StorefrontCategory } from "@/lib/api/catalog";
 import type { StorefrontProduct } from "@/lib/api/types";
 import { kategoriYolu } from "@/lib/kategori";
@@ -19,7 +20,19 @@ import { kategoriYolu } from "@/lib/kategori";
  * durumunu istemcide tutmak, aynı gerçeğin ikinci kopyasını üretirdi.
  */
 
-export const SAYFA_BOYU = 24;
+/**
+ * Sayfa boyu seçenekleri. ÜST SINIR 60'tır ve sunucudan gelir (V7): backend
+ * bir sayfada en çok 60 kayıt döndürür, fazlasını sessizce kırpar — istemcinin
+ * daha büyük bir sayı sunması boş bir vaat olurdu.
+ */
+export const SAYFA_BOYLARI = [24, 48, 60] as const;
+export const SAYFA_BOYU = SAYFA_BOYLARI[0];
+
+/** Izgara mı satır mı — katalogdaki ad uzunluğuna göre müşteri seçer. */
+export const GORUNUMLER = [
+  { deger: "", etiket: "Izgara", Icon: LayoutGrid },
+  { deger: "liste", etiket: "Liste", Icon: List },
+] as const;
 
 /** Sıralama seçenekleri — anahtarlar backend sözleşmesiyle birebir. */
 export const SIRALAMALAR = [
@@ -41,6 +54,8 @@ export interface HamKatalogSorgusu {
   stokta?: string;
   enaz?: string;
   encok?: string;
+  gorunum?: string;
+  boyut?: string;
   sayfa?: string;
   [parametre: string]: string | string[] | undefined;
 }
@@ -54,6 +69,10 @@ export interface KatalogSorgusu {
   /** KDV dahil fiyat aralığı ('' = sınır yok). Parasal METİNDİR: hesaba girmez. */
   enAz: string;
   enCok: string;
+  /** '' ızgara · 'liste' satır görünümü. */
+  gorunum: string;
+  /** Sayfa başına kayıt (SAYFA_BOYLARI'ndan biri). */
+  boyut: number;
   sayfa: number;
   /** Seçili nitelikler {anahtar: değer}. */
   nitelikler: Record<string, string>;
@@ -88,6 +107,12 @@ export function katalogSorgusuCoz(p: HamKatalogSorgusu): KatalogSorgusu {
     stokta: tek(p.stokta) === "1",
     enAz: fiyatSiniri(tek(p.enaz)),
     enCok: fiyatSiniri(tek(p.encok)),
+    gorunum: tek(p.gorunum) === "liste" ? "liste" : "",
+    // Bilinmeyen sayfa boyu sessizce varsayılana düşer: gösterim tercihidir,
+    // yazım hatası listeyi hataya çevirmemeli (sıralamayla aynı ilke).
+    boyut: SAYFA_BOYLARI.includes(Number(tek(p.boyut)) as (typeof SAYFA_BOYLARI)[number])
+      ? Number(tek(p.boyut))
+      : SAYFA_BOYU,
     sayfa: Math.max(1, Number(tek(p.sayfa)) || 1),
     nitelikler,
   };
@@ -109,6 +134,8 @@ export interface SorguDegisikligi {
   stokta?: string;
   enAz?: string;
   enCok?: string;
+  gorunum?: string;
+  boyut?: number;
   sayfa?: number;
   /** Tek niteliği değiştir; deger "" = o anahtarı kaldır. */
   nitelik?: { anahtar: string; deger: string };
@@ -139,6 +166,9 @@ export function katalogLinkKurucu(
     yaz("sirala", d.sirala, mevcut.sirala);
     yaz("enaz", d.enAz, mevcut.enAz);
     yaz("encok", d.enCok, mevcut.enCok);
+    yaz("gorunum", d.gorunum, mevcut.gorunum);
+    const boyut = d.boyut ?? mevcut.boyut;
+    if (boyut !== SAYFA_BOYU) p.set("boyut", String(boyut));
     const stok = d.stokta !== undefined ? d.stokta === "1" : mevcut.stokta;
     if (stok) p.set("stokta", "1");
     const nitelikler = { ...mevcut.nitelikler };
@@ -402,13 +432,76 @@ export function SiralamaSecici({
   );
 }
 
-/** Ürün ızgarası — vitrin kartlarının tek yerleşimi. */
-export function UrunIzgarasi({ urunler }: { urunler: StorefrontProduct[] }) {
+/**
+ * Ürün ızgarası — vitrin kartlarının tek yerleşimi. `gorunum="liste"` ise aynı
+ * ürünler yatay satır olarak çizilir; seçim URL'dedir, ikinci bir durum yok.
+ */
+export function UrunIzgarasi({
+  urunler,
+  gorunum = "",
+}: {
+  urunler: StorefrontProduct[];
+  gorunum?: string;
+}) {
+  if (gorunum === "liste") {
+    return (
+      <div className="space-y-3">
+        {urunler.map((u) => (
+          <ProductRow key={u.uid} urun={u} />
+        ))}
+      </div>
+    );
+  }
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
       {urunler.map((u) => (
         <ProductCard key={u.uid} urun={u} />
       ))}
+    </div>
+  );
+}
+
+/** Görünüm ve sayfa boyu seçicisi — liste başlığının sağında, sıralamanın yanında. */
+export function GorunumSecici({
+  sorgu,
+  linkYap,
+}: {
+  sorgu: KatalogSorgusu;
+  linkYap: LinkKurucu;
+}) {
+  return (
+    <div className="flex shrink-0 items-center gap-2">
+      <div className="hidden items-center gap-1 sm:flex">
+        {SAYFA_BOYLARI.map((b) => (
+          <Link
+            key={b}
+            href={linkYap({ boyut: b })}
+            title={`Sayfada ${b} ürün`}
+            className={`rounded-lg px-2 py-1 text-xs transition ${
+              sorgu.boyut === b
+                ? "bg-accent/10 font-semibold text-accent"
+                : "text-soft hover:text-foreground"
+            }`}
+          >
+            {b}
+          </Link>
+        ))}
+      </div>
+      <div className="flex items-center rounded-lg border border-line">
+        {GORUNUMLER.map((g) => (
+          <Link
+            key={g.deger || "izgara"}
+            href={linkYap({ gorunum: g.deger })}
+            aria-label={`${g.etiket} görünümü`}
+            title={`${g.etiket} görünümü`}
+            className={`flex size-8 items-center justify-center rounded-md transition ${
+              sorgu.gorunum === g.deger ? "bg-accent/10 text-accent" : "text-soft hover:text-foreground"
+            }`}
+          >
+            <g.Icon className="size-4" aria-hidden />
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

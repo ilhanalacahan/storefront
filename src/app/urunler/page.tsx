@@ -5,9 +5,9 @@ import { KatalogDuzeni } from "@/components/katalog-duzeni";
 import {
   AktifSuzgecler,
   FacetPaneli,
+  GorunumSecici,
   KatalogBos,
   KatalogHata,
-  SAYFA_BOYU,
   Sayfalama,
   SiralamaSecici,
   UrunIzgarasi,
@@ -67,8 +67,8 @@ export default async function Urunler({ searchParams }: { searchParams: Promise<
         minPrice: sorgu.enAz,
         maxPrice: sorgu.enCok,
         attributes: sorgu.nitelikler,
-        limit: SAYFA_BOYU,
-        offset: (sorgu.sayfa - 1) * SAYFA_BOYU,
+        limit: sorgu.boyut,
+        offset: (sorgu.sayfa - 1) * sorgu.boyut,
       }),
       kategorileriGetir().catch(() => []),
       markalariGetir({
@@ -95,7 +95,7 @@ export default async function Urunler({ searchParams }: { searchParams: Promise<
     hata = e instanceof Error ? e.message : "Ürünler yüklenemedi.";
   }
 
-  const sonSayfa = Math.max(1, Math.ceil(sonuc.toplam / SAYFA_BOYU));
+  const sonSayfa = Math.max(1, Math.ceil(sonuc.toplam / sorgu.boyut));
   const seciliKategori = kategoriler.find((k) => k.uid === kategori);
   const kokler = kategoriler.filter(
     (k) => !k.parentUid || !kategoriler.some((p) => p.uid === k.parentUid),
@@ -116,7 +116,10 @@ export default async function Urunler({ searchParams }: { searchParams: Promise<
           )}{" "}
           <span className="text-base font-normal text-soft">({sonuc.toplam})</span>
         </h1>
-        <SiralamaSecici sorgu={sorgu} linkYap={linkYap} />
+        <div className="flex items-center gap-3">
+          <SiralamaSecici sorgu={sorgu} linkYap={linkYap} />
+          <GorunumSecici sorgu={sorgu} linkYap={linkYap} />
+        </div>
       </div>
 
       <Suspense>
@@ -148,7 +151,7 @@ export default async function Urunler({ searchParams }: { searchParams: Promise<
             />
           ) : (
             <>
-              <UrunIzgarasi urunler={sonuc.urunler} />
+              <UrunIzgarasi urunler={sonuc.urunler} gorunum={sorgu.gorunum} />
               <Sayfalama sayfa={sorgu.sayfa} sonSayfa={sonSayfa} linkYap={linkYap} />
             </>
           )}

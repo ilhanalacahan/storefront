@@ -8,9 +8,9 @@ import { KatalogDuzeni } from "@/components/katalog-duzeni";
 import {
   AktifSuzgecler,
   FacetPaneli,
+  GorunumSecici,
   KatalogBos,
   KatalogHata,
-  SAYFA_BOYU,
   Sayfalama,
   SiralamaSecici,
   UrunIzgarasi,
@@ -93,8 +93,8 @@ export default async function KategoriSayfasi({ params, searchParams }: Props) {
         minPrice: sorgu.enAz,
         maxPrice: sorgu.enCok,
         attributes: sorgu.nitelikler,
-        limit: SAYFA_BOYU,
-        offset: (sorgu.sayfa - 1) * SAYFA_BOYU,
+        limit: sorgu.boyut,
+        offset: (sorgu.sayfa - 1) * sorgu.boyut,
       }),
       markalariGetir({
         categoryUid: kategori.uid,
@@ -121,7 +121,7 @@ export default async function KategoriSayfasi({ params, searchParams }: Props) {
 
   const yol = kategoriYolu(kategori);
   const linkYap = katalogLinkKurucu(yol, sorgu);
-  const sonSayfa = Math.max(1, Math.ceil(sonuc.toplam / SAYFA_BOYU));
+  const sonSayfa = Math.max(1, Math.ceil(sonuc.toplam / sorgu.boyut));
   const suzgecVar = suzgecVarMi(sorgu);
 
   const kirinti: KirintiOgesi[] = [
@@ -145,7 +145,10 @@ export default async function KategoriSayfasi({ params, searchParams }: Props) {
             )}{" "}
             <span className="text-base font-normal text-soft">({sonuc.toplam})</span>
           </h1>
+          <div className="flex items-center gap-3">
           <SiralamaSecici sorgu={sorgu} linkYap={linkYap} />
+          <GorunumSecici sorgu={sorgu} linkYap={linkYap} />
+        </div>
         </div>
         {kategori.description ? (
           <Markdown metin={kategori.description} className="max-w-2xl" />
@@ -210,7 +213,7 @@ export default async function KategoriSayfasi({ params, searchParams }: Props) {
             />
           ) : (
             <>
-              <UrunIzgarasi urunler={sonuc.urunler} />
+              <UrunIzgarasi urunler={sonuc.urunler} gorunum={sorgu.gorunum} />
               <Sayfalama sayfa={sorgu.sayfa} sonSayfa={sonSayfa} linkYap={linkYap} />
             </>
           )}
