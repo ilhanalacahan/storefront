@@ -9,7 +9,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 TicariCore'un `/store/v1` REST vitrin yüzeyine bağlanan Türkçe Next.js
 (App Router) headless e-ticaret vitrini.
 
-**Kurallar bu belgede değil, anayasadadır:** [`ANAYASA.md`](ANAYASA.md) (V1–V9)
+**Kurallar bu belgede değil, anayasadadır:** [`ANAYASA.md`](ANAYASA.md) (V)
 ve genel maddeler için [`../ANAYASA.md`](../ANAYASA.md).
 
 ## Harita

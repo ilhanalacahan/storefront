@@ -20,19 +20,19 @@ TicariCore'un `/store/v1` REST yüzeyine doğrudan gider.
 
 ### V2 — Sepetin kimliği `cart.uid`'dir
 
-Ayrı bir sepet token'ı yoktur. Girişte `cartMerge` çağrılır ve **dönen uid
+Ayrı bir sepet token'ı yoktur. Girişte `POST /carts/merge` çağrılır ve **dönen uid
 saklanır** — birleşmede uid değişebilir.
 
 ### V3 — `checkout` mutation'ı yoktur
 
 Sipariş, ödeme oturumu **capture** anında doğar:
-`cartSetAddress → paymentSessionStart → authorize`.
+`PUT /carts/{uid}/address → POST /checkout/sessions → POST /checkout/sessions/{uid}/authorize`.
 
 `clientUid` idempotency anahtarıdır (`tsf-odeme-{cartUid}`).
 
 ### V4 — Ödeme başlatılmış sepet donar
 
-Değişiklik için önce `paymentSessionVoid` çağrılır.
+Değişiklik için önce `POST /checkout/sessions/{uid}/cancel` çağrılır.
 
 *Neden:* para peşin çekilir (G18); donmamış sepet, tahsil edilen tutarla
 gönderilen mal arasında sessiz fark üretir.
@@ -61,6 +61,15 @@ döner (null değil).
 *Neden:* vitrin listesi kataloğun tamamını çekmeye çalışırsa ilk boyama süresi
 görsel yüküyle çöker; kategori ve nitelik şablonu ise ürün başına ayrı
 sorgudur (N+1) ve kart onları zaten göstermez.
+
+### V8 — Next.js sürüm notları
+
+- `params` ve `searchParams` **Promise**'tir, `await` edilir.
+- Klasik önbellek modeli kullanılır (`next: { revalidate }`).
+  `cacheComponents` / `"use cache"` **bilinçli olarak** açılmadı — şablon
+  sadeliği tercih edildi.
+- Bu sürüm eğitim verisinden farklıdır: kod yazmadan önce
+  `node_modules/next/dist/docs/` altındaki ilgili kılavuz okunur.
 
 ### V9 — Kategori ağacı düz listedir, sayfa alt ağacı kapsar
 
@@ -114,22 +123,6 @@ girdiden bağımsız yeşil yandığı sürece yalan söyler. Bileşimi istemci
 hesaplasaydı kasadaki fiş ile vitrindeki fiyat kuruş ayrılırdı ve iki
 "doğru" fiyat doğardı.
 
-### V12 — Müşteri içeriği onayla yayınlanır
-
-Yorum ve soru vitrinde **bekliyor** durumunda doğar; mağaza onaylayana kadar
-yazanından başkasına görünmez. Yazarın adı **maskeli** çıkar ("Ahmet Y."),
-e-postası hiç çıkmaz.
-
-Yorum ve soru **AYRI VARLIKLARDIR**: yorum bir değerlendirmedir (puanı vardır,
-ürün ortalamasına girer, bir hesap bir ürüne tek yorum yazar); soru bir
-taleptir (puanı yoktur, satın almadan da sorulur, aynı hesap birden çok
-sorabilir). Tek tabloda birleştirmek, puanı olmayan kayıtlarla ürün
-ortalamasını bozardı.
-
-*Neden:* moderasyonsuz bir içerik alanının sonu bellidir (spam, rakip yorumu,
-kişisel veri sızıntısı). Onay kapısı bunu yapısal olarak keser; maskeleme ise
-KVKK'nın veri minimizasyonudur (G19'un aynı gerekçesi).
-
 ### V13 — Alarm tek atışlıktır, referansı sunucuda damgalıdır
 
 "Stoğa gelince haber ver" ve "fiyat düşünce haber ver" alarmları bir kez
@@ -145,11 +138,18 @@ fiyat düşmeden tetikletme imkânı verirdi. Referans HAM ölçekte tutulur
 onlarca e-posta yollardı. İki ayrı ölçekteki fiyatı kıyaslamak ise hiç
 düşmemiş bir fiyatı düşmüş göstermekti.
 
-### V8 — Next.js sürüm notları
+### V14 — Müşteri içeriği onayla yayınlanır
 
-- `params` ve `searchParams` **Promise**'tir, `await` edilir.
-- Klasik önbellek modeli kullanılır (`next: { revalidate }`).
-  `cacheComponents` / `"use cache"` **bilinçli olarak** açılmadı — şablon
-  sadeliği tercih edildi.
-- Bu sürüm eğitim verisinden farklıdır: kod yazmadan önce
-  `node_modules/next/dist/docs/` altındaki ilgili kılavuz okunur.
+Yorum ve soru vitrinde **bekliyor** durumunda doğar; mağaza onaylayana kadar
+yazanından başkasına görünmez. Yazarın adı **maskeli** çıkar ("Ahmet Y."),
+e-postası hiç çıkmaz.
+
+Yorum ve soru **AYRI VARLIKLARDIR**: yorum bir değerlendirmedir (puanı vardır,
+ürün ortalamasına girer, bir hesap bir ürüne tek yorum yazar); soru bir
+taleptir (puanı yoktur, satın almadan da sorulur, aynı hesap birden çok
+sorabilir). Tek tabloda birleştirmek, puanı olmayan kayıtlarla ürün
+ortalamasını bozardı.
+
+*Neden:* moderasyonsuz bir içerik alanının sonu bellidir (spam, rakip yorumu,
+kişisel veri sızıntısı). Onay kapısı bunu yapısal olarak keser; maskeleme ise
+KVKK'nın veri minimizasyonudur (G19'un aynı gerekçesi).
