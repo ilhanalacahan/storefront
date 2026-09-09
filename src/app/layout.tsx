@@ -14,9 +14,7 @@ import { UstBar } from "@/components/ust-bar";
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
-import { DuyuruCubugu } from "@/components/duyuru-cubugu";
 import { kategorileriGetir } from "@/lib/api/catalog";
-import { bannerlariGetir, sayfalariGetir } from "@/lib/api/cms";
 import { SITE_ADI, SITE_URL } from "@/lib/site";
 
 const ACIKLAMA =
@@ -43,26 +41,19 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  // Kategori menüsü, içerik sayfaları ve duyurular sunucuda çekilir (ISR) ve
-  // düz veri olarak iner. Backend erişilemezse hepsi boş çizilir — site
-  // menüsüz de açılır, hata sayfası değil.
-  const [kategoriler, sayfalar, bannerlar] = await Promise.all([
-    kategorileriGetir().catch(() => []),
-    sayfalariGetir().catch(() => []),
-    bannerlariGetir().catch(() => []),
-  ]);
-  const duyurular = bannerlar.filter((b) => b.kind === 3);
+  // Kategori menüsü sunucuda çekilir (ISR) ve düz veri olarak iner. Backend
+  // erişilemezse boş çizilir — site menüsüz de açılır, hata sayfası değil.
+  const kategoriler = await kategorileriGetir().catch(() => []);
 
   return (
     <html lang="tr" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         <SiteYapisalVerisi />
         <Providers>
-          <DuyuruCubugu duyurular={duyurular} />
-          <UstBar sayfalar={sayfalar.filter((s) => s.showInFooter)} />
-          <Header kategoriler={kategoriler} sayfalar={sayfalar.filter((s) => s.showInHeader)} />
+          <UstBar />
+          <Header kategoriler={kategoriler} />
           <main className="mx-auto w-full max-w-7xl flex-1 px-4">{children}</main>
-          <Footer sayfalar={sayfalar.filter((s) => s.showInFooter)} />
+          <Footer />
           <CartDrawer />
           <BottomNav />
           <CerezBandi />

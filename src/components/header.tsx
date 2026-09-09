@@ -20,7 +20,6 @@ import { MobilMenu } from "@/components/mobil-menu";
 import { useSepetAdedi } from "@/hooks/use-cart";
 import { useFavoriUidleri } from "@/hooks/use-favoriler";
 import type { StorefrontCategory } from "@/lib/api/catalog";
-import { sayfaYolu, type StorefrontPage } from "@/lib/api/cms";
 import { useAuthStore } from "@/store/auth-store";
 import { useCartStore } from "@/store/cart-store";
 import { useKarsilastirmaStore } from "@/store/karsilastirma-store";
@@ -35,17 +34,10 @@ const SITE_ADI = process.env.NEXT_PUBLIC_SITE_NAME ?? "StoreFront";
  * vitrinlerin kalıbı budur ve sebebi ölçülebilir: arama kutusu ile sepet
  * ikonu her sayfada AYNI YERDE durur, müşteri onları aramaz.
  *
- * Menü verisi (kategori, CMS sayfaları) layout'tan düz prop olarak iner —
- * sunucuda 5 dk ISR ile çekilir, tarayıcı açılışta ikinci istek atmaz.
+ * Menü verisi (kategori ağacı) layout'tan düz prop olarak iner — sunucuda
+ * 5 dk ISR ile çekilir, tarayıcı açılışta ikinci istek atmaz.
  */
-export function Header({
-  kategoriler,
-  sayfalar,
-}: {
-  kategoriler: StorefrontCategory[];
-  /** Üst menüde gösterilecek içerik sayfaları (showInHeader). */
-  sayfalar: StorefrontPage[];
-}) {
+export function Header({ kategoriler }: { kategoriler: StorefrontCategory[] }) {
   const openDrawer = useCartStore((s) => s.openDrawer);
   const adet = useSepetAdedi();
   const account = useAuthStore((s) => s.account);
@@ -57,7 +49,7 @@ export function Header({
     <header className="sticky top-0 z-40 border-b border-line bg-surface/95 backdrop-blur">
       {/* SATIR 1 — kimlik, arama, eylemler */}
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4">
-        <MobilMenu kategoriler={kategoriler} sayfalar={sayfalar} />
+        <MobilMenu kategoriler={kategoriler} />
 
         <Link href="/" className="flex shrink-0 items-center gap-2" aria-label="Ana sayfa">
           <span className="flex size-9 items-center justify-center rounded-xl bg-accent text-accent-foreground">
@@ -112,15 +104,6 @@ export function Header({
           <Kisayol href="/kategoriler" Icon={Package}>
             Kategori Rehberi
           </Kisayol>
-          {sayfalar.map((s) => (
-            <Link
-              key={s.uid}
-              href={sayfaYolu(s)}
-              className="rounded-lg px-3 py-1.5 font-medium text-soft transition hover:bg-background hover:text-foreground"
-            >
-              {s.title}
-            </Link>
-          ))}
           <Link
             href="/urunler?sirala=fiyat-artan"
             className="ml-auto rounded-lg bg-price/10 px-3 py-1.5 font-semibold text-price transition hover:bg-price/15"

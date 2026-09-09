@@ -1,8 +1,7 @@
-import { CreditCard, Lock, Mail, MapPin, Phone, RotateCcw, Truck, Zap } from "lucide-react";
+import { Lock, Mail, MapPin, Phone, RotateCcw, Truck, Zap } from "lucide-react";
 import Link from "next/link";
 
 import { BultenFormu } from "@/components/bulten-formu";
-import { sayfaYolu, type StorefrontPage } from "@/lib/api/cms";
 import { BELGE_ADLARI, BELGE_SIRASI } from "@/lib/sozlesmeler";
 
 const SITE_ADI = process.env.NEXT_PUBLIC_SITE_NAME ?? "StoreFront";
@@ -14,7 +13,7 @@ const SITE_ADI = process.env.NEXT_PUBLIC_SITE_NAME ?? "StoreFront";
  * OLAN ÇİZİLMEZ: uydurma adres basmak, sözleşme sayfasında olduğu gibi burada
  * da yanlıştır (bkz. lib/satici.ts).
  */
-export function Footer({ sayfalar }: { sayfalar: StorefrontPage[] }) {
+export function Footer() {
   const unvan = (process.env.NEXT_PUBLIC_SATICI_UNVAN ?? "").trim();
   const adres = (process.env.NEXT_PUBLIC_SATICI_ADRES ?? "").trim();
   const telefon = (process.env.NEXT_PUBLIC_SATICI_TELEFON ?? "").trim();
@@ -29,7 +28,6 @@ export function Footer({ sayfalar }: { sayfalar: StorefrontPage[] }) {
             { Icon: Truck, baslik: "Hızlı Kargo", alt: "Stoktan aynı gün çıkış" },
             { Icon: RotateCcw, baslik: "14 Gün İade", alt: "Koşulsuz cayma hakkı" },
             { Icon: Lock, baslik: "Güvenli Ödeme", alt: "3D Secure altyapısı" },
-            { Icon: CreditCard, baslik: "Taksit İmkânı", alt: "Kredi kartına taksit" },
           ].map(({ Icon, baslik, alt }) => (
             <div key={baslik} className="flex items-center gap-3">
               <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">
@@ -97,11 +95,6 @@ export function Footer({ sayfalar }: { sayfalar: StorefrontPage[] }) {
           <FooterBaglanti href="/favoriler">Favorilerim</FooterBaglanti>
           <FooterBaglanti href="/sepet">Sepetim</FooterBaglanti>
           <FooterBaglanti href="/siparis-sorgula">Sipariş Sorgula</FooterBaglanti>
-          {sayfalar.map((s) => (
-            <FooterBaglanti key={s.uid} href={sayfaYolu(s)}>
-              {s.title}
-            </FooterBaglanti>
-          ))}
         </FooterSutun>
 
         <FooterSutun baslik="Yasal">

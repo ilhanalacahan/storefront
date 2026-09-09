@@ -1,7 +1,6 @@
 import type { MetadataRoute } from "next";
 
 import { kategorileriGetir, koleksiyonlariGetir, urunleriGetir } from "@/lib/api/catalog";
-import { sayfaYolu, sayfalariGetir } from "@/lib/api/cms";
 import { kategoriYolu } from "@/lib/kategori";
 import { BELGE_SIRASI } from "@/lib/sozlesmeler";
 import { SITE_URL, urunYolu } from "@/lib/site";
@@ -65,17 +64,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     )
     .catch(() => []);
 
-  const sayfalar: MetadataRoute.Sitemap = await sayfalariGetir()
-    .then((liste) =>
-      liste.map((s) => ({
-        url: `${SITE_URL}${sayfaYolu(s)}`,
-        lastModified: s.updatedAt ? new Date(s.updatedAt) : simdi,
-        changeFrequency: "monthly" as const,
-        priority: 0.5,
-      })),
-    )
-    .catch(() => []);
-
   const koleksiyonlar: MetadataRoute.Sitemap = await koleksiyonlariGetir()
     .then((liste) =>
       liste
@@ -110,5 +98,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     if (sayfa.length < SAYFA) break;
   }
 
-  return [...sabit, ...kategoriler, ...koleksiyonlar, ...sayfalar, ...urunler];
+  return [...sabit, ...kategoriler, ...koleksiyonlar, ...urunler];
 }

@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 
 import { kardesleriGetir, kategorileriGetir, urunGetir, urunleriGetir } from "@/lib/api/catalog";
 import { kargoTarifesiGetir } from "@/lib/api/cart";
-import { taksitleriGetir } from "@/lib/api/taksit";
 import { BuyBox } from "./buy-box";
 import { Gallery } from "./gallery";
 import { NitelikSecici } from "@/components/nitelik-secici";
@@ -12,7 +11,6 @@ import { Paylas } from "@/components/paylas";
 import { ProductCard } from "@/components/product-card";
 import { Serit } from "@/components/serit";
 import { SonGezilenler } from "@/components/son-gezilenler";
-import { TaksitTablosu } from "@/components/taksit-tablosu";
 import { TeslimatKutusu } from "@/components/teslimat-kutusu";
 import { UrunIzi } from "@/components/urun-izi";
 import { UrunSekmeleri, type UrunSekmesi } from "@/components/urun-sekmeleri";
@@ -117,10 +115,6 @@ export default async function UrunDetay({ params }: Props) {
         .slice(0, 10)
     : [];
 
-  // Taksit tablosu ÜRÜNÜN ETİKET FİYATINA göre çözülür ve sunucudan hazır
-  // gelir (G5). Kanalda tarife yoksa boş döner ve sekme hiç açılmaz.
-  const taksitler = await taksitleriGetir(urun.price);
-
   const gorseller = urun.gallery.length
     ? urun.gallery
     : urun.imageUrl
@@ -147,13 +141,6 @@ export default async function UrunDetay({ params }: Props) {
           <UrunBilgileri urun={urun} />
         </div>
       ),
-    });
-  }
-  if (taksitler.length) {
-    sekmeler.push({
-      anahtar: "taksit",
-      etiket: "Taksit Seçenekleri",
-      icerik: <TaksitTablosu bankalar={taksitler} curCode={urun.curCode} baslik="" />,
     });
   }
   sekmeler.push({

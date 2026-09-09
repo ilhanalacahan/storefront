@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import type { StorefrontCategory } from "@/lib/api/catalog";
-import { sayfaYolu, type StorefrontPage } from "@/lib/api/cms";
 import { kategoriAgaci, kategoriYolu, type KategoriDugumu } from "@/lib/kategori";
 import { BELGE_ADLARI } from "@/lib/sozlesmeler";
 import { useAuthStore } from "@/store/auth-store";
@@ -20,13 +19,7 @@ import { useAuthStore } from "@/store/auth-store";
  * Panel açıkken sayfa kaydırması KİLİTLENİR: arkadaki liste kayarsa müşteri
  * menüyü kapattığında nerede olduğunu kaybeder.
  */
-export function MobilMenu({
-  kategoriler,
-  sayfalar,
-}: {
-  kategoriler: StorefrontCategory[];
-  sayfalar: StorefrontPage[];
-}) {
+export function MobilMenu({ kategoriler }: { kategoriler: StorefrontCategory[] }) {
   const [acik, setAcik] = useState(false);
   const agac = kategoriAgaci(kategoriler);
   const hesap = useAuthStore((s) => s.account);
@@ -112,24 +105,6 @@ export function MobilMenu({
                   </p>
                   {agac.map((k) => (
                     <Dal key={k.uid} dugum={k} onGezinti={kapat} />
-                  ))}
-                </div>
-              ) : null}
-
-              {sayfalar.length ? (
-                <div className="border-t border-line p-2">
-                  <p className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-soft">
-                    Kurumsal
-                  </p>
-                  {sayfalar.map((s) => (
-                    <Link
-                      key={s.uid}
-                      href={sayfaYolu(s)}
-                      onClick={kapat}
-                      className="block rounded-lg px-3 py-2 text-sm text-soft transition hover:bg-background hover:text-foreground"
-                    >
-                      {s.title}
-                    </Link>
                   ))}
                 </div>
               ) : null}

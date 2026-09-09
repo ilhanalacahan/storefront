@@ -1,8 +1,6 @@
-import { ArrowRight, CreditCard, RotateCcw, ShieldCheck, Truck } from "lucide-react";
+import { ArrowRight, RotateCcw, ShieldCheck, Truck } from "lucide-react";
 import Link from "next/link";
 
-import { GeriSayim } from "@/components/geri-sayim";
-import { HeroSlider } from "@/components/hero-slider";
 import { KategoriSerit } from "@/components/kategori-serit";
 import { MarkaSerit } from "@/components/marka-serit";
 import { ProductCard } from "@/components/product-card";
@@ -16,7 +14,6 @@ import {
   urunleriGetir,
   type StorefrontCollection,
 } from "@/lib/api/catalog";
-import { bannerlariGetir, type StorefrontBanner } from "@/lib/api/cms";
 import type { StorefrontProduct } from "@/lib/api/types";
 
 /** Ana sayfada bir şeritte gösterilecek azami ürün. */
@@ -37,25 +34,21 @@ const KOLEKSIYON_SERIDI = 3;
  * mağazayı kurulmamış gösterir.
  *
  * BİR BLOĞUN HATASI SAYFAYI DÜŞÜRMEZ: her çağrı kendi catch'iyle boşa düşer.
- * Backend'in banner ucu kapalıyken de vitrin ürünleriyle açılmalıdır.
+ * Katalog ucu kapalıyken de sayfa açılır, hata sayfası değil.
  */
 export default async function AnaSayfa() {
-  const [urunSonucu, yeniler, bannerlar, kategoriler, markalar, koleksiyonlar] = await Promise.all([
+  const [urunSonucu, yeniler, kategoriler, markalar, koleksiyonlar] = await Promise.all([
     urunleriGetir({ limit: SERIT_BOYU }).then(
       (u) => ({ u, e: "" }),
       (e: unknown) => ({ u: [] as StorefrontProduct[], e: e instanceof Error ? e.message : "Katalog yüklenemedi." }),
     ),
     urunleriGetir({ limit: SERIT_BOYU, sort: "yeni" }).catch(() => [] as StorefrontProduct[]),
-    bannerlariGetir().catch(() => [] as StorefrontBanner[]),
     kategorileriGetir().catch(() => []),
     markalariGetir().catch(() => []),
     koleksiyonlariGetir().catch(() => [] as StorefrontCollection[]),
   ]);
   const urunler = urunSonucu.u;
   const hata = urunSonucu.e;
-
-  const herolar = bannerlar.filter((b) => b.kind === 1);
-  const kartlar = bannerlar.filter((b) => b.kind === 2);
 
   // Koleksiyon şeritleri: ana sayfaya alınan ilk birkaç koleksiyonun ürünleri
   // tek turda paralel çekilir (koleksiyon başına sıralı istek, sayfayı
@@ -96,15 +89,14 @@ export default async function AnaSayfa() {
 
   return (
     <div className="space-y-10 py-5">
-      {herolar.length ? <HeroSlider herolar={herolar} /> : <VarsayilanHero />}
+      <VarsayilanHero />
 
       {/* GÜVEN ŞERİDİ */}
-      <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 md:grid-cols-3">
         {[
           { Icon: Truck, baslik: "Hızlı Teslimat", alt: "Stoktan aynı gün kargo" },
           { Icon: ShieldCheck, baslik: "Güvenli Ödeme", alt: "3D Secure altyapısı" },
           { Icon: RotateCcw, baslik: "Kolay İade", alt: "14 gün koşulsuz" },
-          { Icon: CreditCard, baslik: "Taksit İmkânı", alt: "Tüm kartlara taksit" },
         ].map(({ Icon, baslik, alt }) => (
           <div
             key={baslik}
@@ -122,14 +114,6 @@ export default async function AnaSayfa() {
       </section>
 
       <KategoriSerit kategoriler={kategoriler} />
-
-      {kartlar.length ? (
-        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {kartlar.map((k) => (
-            <BannerKarti key={k.uid} banner={k} />
-          ))}
-        </section>
-      ) : null}
 
       {hata ? (
         <div className="rounded-2xl border border-line bg-surface p-8 text-center text-sm text-soft">
@@ -183,7 +167,7 @@ function Izgara({ urunler }: { urunler: StorefrontProduct[] }) {
   );
 }
 
-/** Şablonun varsayılan hero'su — CMS'de hero tanımlanana kadar. */
+/** Ana sayfanın üst bloğu. */
 function VarsayilanHero() {
   return (
     <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-accent via-accent to-indigo-700 px-6 py-14 text-white md:px-12 md:py-20">
@@ -210,48 +194,5 @@ function VarsayilanHero() {
       <div className="pointer-events-none absolute -right-24 -top-24 size-96 rounded-full bg-white/10 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-32 right-24 size-72 rounded-full bg-cyan-300/20 blur-3xl" />
     </section>
-  );
-}
-
-/** Banner kartı — görsel + başlık + geri sayım + isteğe bağlı bağlantı. */
-function BannerKarti({ banner }: { banner: StorefrontBanner }) {
-  const icerik = (
-    <>
-      <div className="relative">
-        {banner.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- CMS görseli; boyut bilinmiyor
-          <img
-            src={banner.imageUrl}
-            alt={banner.title}
-            className="aspect-[3/1] w-full object-cover transition group-hover:scale-[1.02]"
-          />
-        ) : (
-          <div className="aspect-[3/1] w-full bg-gradient-to-br from-accent/20 to-accent/5" />
-        )}
-        {banner.endsAt ? (
-          <span className="absolute right-2 top-2 rounded-lg bg-surface/90 px-2 py-1 backdrop-blur">
-            <GeriSayim bitis={banner.endsAt} sade />
-          </span>
-        ) : null}
-      </div>
-      <div className="space-y-1 p-4">
-        <p className="font-semibold">{banner.title}</p>
-        {banner.subtitle ? <p className="text-sm text-soft">{banner.subtitle}</p> : null}
-        {banner.linkLabel ? (
-          <p className="flex items-center gap-1 text-sm font-medium text-accent">
-            {banner.linkLabel} <ArrowRight className="size-4" />
-          </p>
-        ) : null}
-      </div>
-    </>
-  );
-  const sinif =
-    "group overflow-hidden rounded-2xl border border-line bg-surface transition hover:border-accent";
-  return banner.linkUrl ? (
-    <Link href={banner.linkUrl} className={sinif}>
-      {icerik}
-    </Link>
-  ) : (
-    <div className={sinif}>{icerik}</div>
   );
 }

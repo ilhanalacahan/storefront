@@ -1,7 +1,6 @@
 import { Headphones, Mail, MapPin, PackageSearch, Phone, RotateCcw } from "lucide-react";
 import Link from "next/link";
 
-import { sayfaYolu, type StorefrontPage } from "@/lib/api/cms";
 
 /**
  * ÜST HİZMET ÇUBUĞU — başlığın üstünde, koyu zeminli ince şerit.
@@ -15,7 +14,7 @@ import { sayfaYolu, type StorefrontPage } from "@/lib/api/cms";
  * değilse o parça hiç çizilmez. Uydurma telefon numarası basmak, sözleşme
  * sayfasında olduğu gibi burada da yanlıştır.
  */
-export function UstBar({ sayfalar }: { sayfalar: StorefrontPage[] }) {
+export function UstBar() {
   const telefon = (process.env.NEXT_PUBLIC_SATICI_TELEFON ?? "").trim();
   const eposta = (process.env.NEXT_PUBLIC_SATICI_EPOSTA ?? "").trim();
 
@@ -44,11 +43,6 @@ export function UstBar({ sayfalar }: { sayfalar: StorefrontPage[] }) {
             <RotateCcw className="size-3.5" aria-hidden />
             Kolay İade
           </Link>
-          {sayfalar.slice(0, 3).map((s) => (
-            <Link key={s.uid} href={sayfaYolu(s)} className="transition hover:text-white">
-              {s.title}
-            </Link>
-          ))}
           <Link href="/hesap" className="flex items-center gap-1.5 transition hover:text-white">
             <Headphones className="size-3.5" aria-hidden />
             Destek

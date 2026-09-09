@@ -18,7 +18,6 @@ import { CartTotals } from "@/components/cart-lines";
 import { OdemeAdimlari } from "@/components/odeme-adimlari";
 import { ProductImage } from "@/components/product-image";
 import { SozlesmeOnayi } from "@/components/sozlesme-onayi";
-import { TaksitOzeti } from "@/components/taksit-ozeti";
 import { TeslimatSecimi } from "@/components/teslimat-secimi";
 import { useAdresYaz, useCart } from "@/hooks/use-cart";
 import { odemeBaslat, odemeIptal, odemeOnayla, odemeOturumu } from "@/lib/api/payment";
@@ -589,7 +588,6 @@ export default function OdemeSayfasi() {
             ))}
           </ul>
           <CartTotals sepet={sepet} />
-          <TaksitOzeti tutar={sepet.grandTotal} curCode={sepet.curCode} />
           <p className="mt-3 flex items-center gap-1.5 border-t border-line pt-3 text-xs text-soft">
             <Lock className="size-3.5 shrink-0" aria-hidden />
             Ödeme bilgileriniz mağazada saklanmaz; işlem 3D Secure ile yapılır.
