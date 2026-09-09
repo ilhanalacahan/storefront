@@ -189,21 +189,6 @@ export interface ProductSiblings {
   axes: ProductSiblingAxis[];
 }
 
-/**
- * Makine modeli (/machines) — "makine seç → ürün bul": marka/model → o
- * makineye uyan ürünün nitelik değerleri. Ürüne bağ yoktur; değerler kategori
- * sayfasının nitelik süzgecine (n.<anahtar>=<değer>) çevrilir.
- */
-export interface StorefrontMachine {
-  uid: string;
-  brand: string;
-  model: string;
-  categoryUid: string;
-  categoryHandle: string;
-  categoryName: string;
-  attributes: Record<string, string>;
-}
-
 export interface ProductOption {
   name: string;
   value: string;

@@ -5,7 +5,6 @@ import type {
   ProductComposeInput,
   ProductComposeResult,
   ProductSiblings,
-  StorefrontMachine,
   StorefrontProduct,
 } from "./types";
 
@@ -183,21 +182,6 @@ export async function kardesleriGetir(uid: string): Promise<ProductSiblings | nu
   }
 }
 
-/**
- * Makine modelleri — kategori (alt ağacı) için "makinenizi seçin" listesi.
- * Tanım tenant genelidir; 5 dk ISR. Boş liste = bu kategoride makine tablosu yok.
- */
-export async function makineleriGetir(categoryUid?: string): Promise<StorefrontMachine[]> {
-  try {
-    const d = await apiSunucu<{ machines: StorefrontMachine[] }>(
-      `/machines${sorgu({ category: categoryUid })}`,
-      { revalidate: 300 },
-    );
-    return d.machines;
-  } catch {
-    return [];
-  }
-}
 
 /**
  * Parametre bileşimi — PDP'de şerit boyu/adet girilince fiyat, taban miktar
